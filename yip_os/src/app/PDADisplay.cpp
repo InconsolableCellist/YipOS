@@ -114,9 +114,22 @@ void PDADisplay::WriteHLine(int col, float row, int length) {
 }
 
 void PDADisplay::SetMode(Mode mode) {
+    Mode prev = current_mode_;
     SendParam("WT_ScaleA", mode == MODE_MACRO);
     SendParam("WT_ScaleB", mode == MODE_CLEAR);
     current_mode_ = mode;
+    if (prev == MODE_MACRO && mode == MODE_TEXT) {
+        // The Write Head quad renders every frame. After macro→text switch,
+        // it shrinks to one cell but cursor is still at center (0.5, 0.5)
+        // from the stamp. Send cursor + space char in the same param batch
+        // (no sleep) so VRChat processes them in the same frame as the
+        // mode switch — the write head lands at the corner with a space.
+        SendParam("WT_CursorX", 0.0125f);  // col 0
+        SendParam("WT_CursorY", 0.0f);
+        SendParam("WT_CharLo", 32.0f);     // space
+        hw_cursor_x_ = -1.0f;
+        hw_cursor_y_ = -1.0f;
+    }
     SleepMs(settle_delay_);
 }
 
@@ -127,10 +140,11 @@ void PDADisplay::SetClearMode() { SetMode(MODE_CLEAR); }
 void PDADisplay::StampMacro(int macro_index) {
     SendParam("WT_CursorX", 0.5f);
     SendParam("WT_CursorY", 0.5f);
-    hw_cursor_x_ = 0.5f;
-    hw_cursor_y_ = 0.5f;
     SendParam("WT_CharLo", static_cast<float>(macro_index));
     SleepMs(write_delay_);
+    // Invalidate cached cursor so next text write resends both axes.
+    hw_cursor_x_ = -1.0f;
+    hw_cursor_y_ = -1.0f;
 }
 
 void PDADisplay::ClearScreen() {
