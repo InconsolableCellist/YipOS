@@ -1562,6 +1562,49 @@ def keyboard_thread(pda):
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 
+# --- Boot Screen ---
+
+
+BOOT_MACRO_INDEX = 5
+
+def boot_sequence(display):
+    """Show a boot screen with macro glyph + animated progress bar.
+
+    Static content (logo, title, copyright, empty bar, BOOTING label)
+    is baked into macro glyph slot 5. Only the filled bar segments
+    are written dynamically.
+    """
+    d = display
+
+    # Stamp the boot macro glyph (all static content in 1 write)
+    d.set_macro_mode()
+    d.stamp_macro(BOOT_MACRO_INDEX)
+    d.set_text_mode()
+
+    # Progress bar dimensions (must match generate_macro_atlas.py layout_boot)
+    bar_width = 20
+    bar_col = (COLS - bar_width) // 2
+    d.screen.dump()
+
+    # Animate: fill bar left to right with variable pacing
+    import random
+    filled = 0
+    while filled < bar_width:
+        step = random.choice([1, 1, 1, 2, 2, 3])
+        step = min(step, bar_width - filled)
+        for i in range(step):
+            d.write_glyph(bar_col + filled, 5, G_SOLID)
+            filled += 1
+        pause = random.uniform(0.1, 0.4)
+        if random.random() < 0.15:
+            pause = random.uniform(0.6, 1.2)  # stall
+        time.sleep(pause)
+
+    d.screen.dump()
+    print("Boot sequence complete.")
+    time.sleep(0.5)
+
+
 # --- Main ---
 
 
@@ -1579,6 +1622,8 @@ def main():
     parser.add_argument("--y-curve", type=float, default=1.0,
                         help="Y cursor curvature (default: 1.0). >1 pushes middle rows down, "
                              "<1 pushes them up.")
+    parser.add_argument("--boot", action="store_true",
+                        help="Show boot screen with progress bar before home screen")
     parser.add_argument("--calibrate", action="store_true",
                         help="Show calibration test pattern instead of home screen")
     parser.add_argument("--refresh", type=float, default=0,
@@ -1658,6 +1703,13 @@ def main():
             line = label + "=" * (COLS - len(label))
             display.write_text(0, zr, line)
         display.screen.dump()
+    elif args.boot:
+        print("Boot sequence...")
+        boot_sequence(display)
+        display.clear_screen()
+        display.set_text_mode()
+        print("Rendering home screen...")
+        pda._start_render(pda.current_screen)
     else:
         print("Rendering home screen...")
         pda._start_render(pda.current_screen)

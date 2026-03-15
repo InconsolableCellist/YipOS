@@ -1,0 +1,6 @@
+# Build artifacts
+yip_os/build/
+
+# Python
+__pycache__/
+*.pyc
