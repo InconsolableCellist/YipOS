@@ -3,6 +3,7 @@
 #include "app/PDADisplay.hpp"
 #include "net/NetTracker.hpp"
 #include "platform/SystemStats.hpp"
+#include "core/Config.hpp"
 #include "core/Logger.hpp"
 #include <cstdio>
 #include <algorithm>
@@ -209,6 +210,7 @@ bool StatsScreen::OnInput(const std::string& key) {
         display_.WriteText(35, 4, "DSK", false);
 
         sys.CycleDisk();
+        pda_.GetConfig().SetState("stats.disk", sys.GetDiskLabel());
         Logger::Info("Disk cycled to: " + sys.GetDiskLabel());
 
         // Redraw the DISK row with new filesystem data

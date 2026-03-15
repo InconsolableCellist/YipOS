@@ -19,6 +19,7 @@ public:
     virtual int GetDiskPercent() const = 0;
     virtual std::string GetDiskLabel() const = 0;
     virtual void CycleDisk() = 0;
+    virtual void SetDisk(const std::string& label) = 0;
     virtual std::string GetUptime() const = 0;
 
     static SystemStats* Create();

@@ -9,6 +9,7 @@
 
 namespace YipOS {
 
+class Config;
 class PDADisplay;
 class Screen;
 class NetTracker;
@@ -16,7 +17,7 @@ class SystemStats;
 
 class PDAController {
 public:
-    PDAController(PDADisplay& display, NetTracker& net_tracker, float refresh_interval = 0);
+    PDAController(PDADisplay& display, NetTracker& net_tracker, Config& config, float refresh_interval = 0);
     ~PDAController();
 
     // Main loop methods
@@ -51,6 +52,7 @@ public:
     PDADisplay& GetDisplay() { return display_; }
     NetTracker& GetNetTracker() { return net_tracker_; }
     SystemStats& GetSystemStats() { return *system_stats_; }
+    Config& GetConfig() { return config_; }
     Screen* GetCurrentScreen() const;
     int GetScreenStackDepth() const { return static_cast<int>(screen_stack_.size()); }
     char GetSpinnerChar() const;
@@ -66,6 +68,7 @@ private:
 
     PDADisplay& display_;
     NetTracker& net_tracker_;
+    Config& config_;
     std::unique_ptr<SystemStats> system_stats_;
 
     // Input queue (thread-safe: OSC recv thread → main thread)

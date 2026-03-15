@@ -48,6 +48,16 @@ public:
         disk_index_ = (disk_index_ + 1) % drives_.size();
         UpdateDisk();
     }
+    void SetDisk(const std::string& label) override {
+        for (size_t i = 0; i < drives_.size(); i++) {
+            std::string drive_label = drives_[i].substr(0, 2);
+            if (drive_label == label) {
+                disk_index_ = i;
+                UpdateDisk();
+                return;
+            }
+        }
+    }
     std::string GetUptime() const override { return uptime_; }
 
 private:

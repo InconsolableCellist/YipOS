@@ -54,6 +54,7 @@ set(YIPOS_SOURCES
     src/screens/HeartScreen.cpp
     src/screens/StayScreen.cpp
     src/screens/CalibrateScreen.cpp
+    src/screens/ConfScreen.cpp
     src/net/OSCManager.cpp
     src/net/NetTracker.cpp
     src/ui/UIManager.cpp
@@ -87,5 +88,5 @@ target_link_libraries(yip_os PRIVATE
 if(UNIX)
     target_link_libraries(yip_os PRIVATE pthread)
 elseif(WIN32)
-    target_link_libraries(yip_os PRIVATE ws2_32)
+    target_link_libraries(yip_os PRIVATE ws2_32 iphlpapi)
 endif()

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 
 namespace YipOS {
 
@@ -22,13 +23,25 @@ struct Config {
 
     // [startup]
     bool boot_animation = true;
+    float boot_speed = 1.0f;  // multiplier for boot pause durations (0.5=fast, 1.0=normal, 2.0=slow)
 
     // [logging]
     std::string log_level = "INFO";
 
+    // [state] — persistent key/value store ("NVRAM")
+    // Modules use dotted keys: "net.interface", "stats.disk", etc.
+    std::unordered_map<std::string, std::string> state;
+
+    std::string GetState(const std::string& key, const std::string& fallback = "") const;
+    void SetState(const std::string& key, const std::string& value);
+    void ClearState();
+
     bool LoadFromFile(const std::string& path);
     bool SaveToFile(const std::string& path) const;
     static void CreateDefault(const std::string& path);
+
+    // Set by main after load so SetState can auto-save
+    std::string config_path;
 };
 
 } // namespace YipOS

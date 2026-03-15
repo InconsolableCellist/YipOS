@@ -1,0 +1,19 @@
+# Normalize line endings: LF in repo, native on checkout
+* text=auto
+
+# Force LF for these regardless of platform
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.h text eol=lf
+*.c text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.ini text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.npy binary

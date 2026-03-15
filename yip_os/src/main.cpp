@@ -13,6 +13,7 @@
 #include "app/PDAController.hpp"
 #include "net/OSCManager.hpp"
 #include "net/NetTracker.hpp"
+#include "platform/SystemStats.hpp"
 #include "ui/UIManager.hpp"
 
 std::atomic<bool> g_running = true;
@@ -85,8 +86,14 @@ int main(int argc, char* argv[]) {
         YipOS::PDADisplay display(osc, screen_buffer,
                                   config.y_offset, config.y_scale, config.y_curve,
                                   config.write_delay, config.settle_delay);
-        YipOS::NetTracker net_tracker;
-        YipOS::PDAController pda(display, net_tracker, config.refresh_interval);
+        YipOS::NetTracker net_tracker(config.GetState("net.interface"));
+        YipOS::PDAController pda(display, net_tracker, config, config.refresh_interval);
+
+        // Restore persisted state
+        std::string saved_disk = config.GetState("stats.disk");
+        if (!saved_disk.empty()) {
+            pda.GetSystemStats().SetDisk(saved_disk);
+        }
 
         // Wire up OSC input handler
         osc.SetInputHandler([&pda](const std::string& address, float value) {

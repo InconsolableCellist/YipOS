@@ -63,6 +63,25 @@ public:
         disk_index_ = (disk_index_ + 1) % mount_points_.size();
         ReadDisk();
     }
+    void SetDisk(const std::string& label) override {
+        for (size_t i = 0; i < mount_points_.size(); i++) {
+            const auto& m = mount_points_[i];
+            std::string short_label;
+            if (m == "/") {
+                short_label = "/";
+            } else {
+                auto pos = m.rfind('/');
+                short_label = (pos != std::string::npos && pos + 1 < m.size())
+                              ? m.substr(pos + 1) : m;
+            }
+            if (short_label.size() > 4) short_label = short_label.substr(0, 4);
+            if (short_label == label) {
+                disk_index_ = i;
+                ReadDisk();
+                return;
+            }
+        }
+    }
     std::string GetUptime() const override { return uptime_; }
 
 private:

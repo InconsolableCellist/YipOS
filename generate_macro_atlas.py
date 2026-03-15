@@ -101,8 +101,8 @@ ZONE_ROWS = [
 TILE_COLS = 5
 TILE_ROWS = 3
 TILE_LABELS = [
-    ["STATS", "NET", "TRACK", "SPVR", "CONFG"],
-    ["VRCX", "HEART", "MAP", "-----", "-----"],
+    ["STATS", "NET", "TRACK", "SPVR", "CONF"],
+    ["VRCX", "HEART", "MAP", "DBG", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
 ]
 CHARS_PER_TILE = COLS // TILE_COLS  # 8
@@ -336,6 +336,46 @@ def layout_heart(buf):
     buf.put_status_bar()
 
 
+def _layout_conf_page(buf, title, labels_row1, labels_row2):
+    """Shared layout for config pages: frame + inverted labels + separator + status bar.
+
+    Labels are inverted on rows 1,4 (aligned with touch contacts).
+    Dynamic values (plain text) on rows 2,5 written by RenderDynamic().
+    """
+    buf.put_frame(title)
+    btn_cols = [4, 20, 36]
+
+    # Row 1: inverted labels = touchable buttons (touch row 1)
+    for label, col in zip(labels_row1, btn_cols):
+        start = col - len(label) // 2
+        buf.put_text(start, 1, label, inverted=True)
+
+    # Row 3: horizontal separator
+    for c in range(1, COLS - 1):
+        buf.put_glyph(c, 3, G_HLINE)
+
+    # Row 4: inverted labels = touchable buttons (touch row 2)
+    for label, col in zip(labels_row2, btn_cols):
+        start = col - len(label) // 2
+        buf.put_text(start, 4, label, inverted=True)
+
+    buf.put_status_bar()
+
+
+def layout_conf_p1(buf):
+    """Config page 1: BOOT/WRITE/SETTL + LOG/DBNCE/NVRAM."""
+    _layout_conf_page(buf, "CONFIG 1/2",
+                      ["BOOT", "WRITE", "SETTL"],
+                      ["LOG", "DBNCE", "NVRAM"])
+
+
+def layout_conf_p2(buf):
+    """Config page 2: REFR/REBOOT."""
+    _layout_conf_page(buf, "CONFIG 2/2",
+                      ["REFR", "REBOOT"],
+                      [])
+
+
 # ---------------------------------------------------------------------------
 # Screen layout registry
 # ---------------------------------------------------------------------------
@@ -367,10 +407,11 @@ SCREEN_LAYOUTS = {
     2: ("STAY", layout_stay),
     3: ("NET", layout_net),
     4: ("HEART", layout_heart),
-    5: ("BOOT", layout_boot),
+    # 5: BOOT — custom screen, preserved from existing atlas (do NOT regenerate)
+    6: ("CONF1", layout_conf_p1),
+    7: ("CONF2", layout_conf_p2),
     # Future screens:
-    # 6: ("TRACK", layout_track),
-    # 7: ("CONFG", layout_confg),
+    # 7: ("TRACK", layout_track),
 }
 
 
@@ -461,8 +502,20 @@ def main():
     rom_glyphs = build_rom_glyphs()
     print(f"  Loaded {len(rom_glyphs)} glyphs")
 
-    # Create the full atlas
     atlas = Image.new("L", (ATLAS_W, ATLAS_H), 0)
+
+    # Paste custom boot screen at slot 5 (hand-made, not generated)
+    boot_path = os.path.join(SCRIPT_DIR, "boot_screen.png")
+    if os.path.exists(boot_path):
+        boot_img = Image.open(boot_path).convert("L")
+        boot_x = (5 % MACRO_GRID_COLS) * MACRO_CELL_W
+        boot_y = (5 // MACRO_GRID_COLS) * MACRO_CELL_H
+        atlas.paste(boot_img, (boot_x, boot_y))
+        print(f"\n  [5] BOOT (custom) → grid ({5 % MACRO_GRID_COLS}, {5 // MACRO_GRID_COLS}), "
+              f"offset ({boot_x}, {boot_y}) from {boot_path}")
+    else:
+        print(f"\n  WARNING: Custom boot screen not found: {boot_path}")
+
     print(f"\nAtlas: {ATLAS_W}x{ATLAS_H} ({MACRO_GRID_COLS}x{MACRO_GRID_ROWS} grid, "
           f"{MACRO_CELL_W}x{MACRO_CELL_H} per cell)")
 

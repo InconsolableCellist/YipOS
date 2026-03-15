@@ -5,6 +5,7 @@
 #include "HeartScreen.hpp"
 #include "StayScreen.hpp"
 #include "CalibrateScreen.hpp"
+#include "ConfScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Glyphs.hpp"
@@ -95,7 +96,8 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
     if (name == "NET")   return std::make_unique<NetScreen>(pda);
     if (name == "HEART") return std::make_unique<HeartScreen>(pda);
     if (name == "SPVR")  return std::make_unique<StayScreen>(pda);
-    if (name == "CONFG") return std::make_unique<CalibrateScreen>(pda);
+    if (name == "CONF") return std::make_unique<ConfScreen>(pda);
+    if (name == "DBG")  return std::make_unique<CalibrateScreen>(pda);
     return nullptr;
 }
 

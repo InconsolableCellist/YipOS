@@ -5,6 +5,7 @@
 #include "net/NetTracker.hpp"
 #include "platform/SystemStats.hpp"
 #include "core/Glyphs.hpp"
+#include "core/Config.hpp"
 #include "core/Logger.hpp"
 #include <chrono>
 #include <ctime>
@@ -23,8 +24,8 @@ static double MonotonicNow() {
         std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, float refresh_interval)
-    : display_(display), net_tracker_(net_tracker),
+PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Config& config, float refresh_interval)
+    : display_(display), net_tracker_(net_tracker), config_(config),
       system_stats_(SystemStats::Create()),
       refresh_interval_(refresh_interval) {
     // Push home screen as root
@@ -172,19 +173,14 @@ void PDAController::ProcessInput() {
             key = key.substr(prefix.size());
         }
 
-        // Global buttons
+        // TL = back (pop screen stack toward home)
         if (key == "TL") {
-            Logger::Info("TL: Home");
-            GoHome();
-            continue;
-        }
-        if (key == "ML") {
-            Logger::Info("ML: Back");
+            Logger::Info("TL: Back");
             PopScreen();
             continue;
         }
 
-        // Route to current screen
+        // Route to current screen (ML/BL/touch handled per-screen)
         Screen* current = GetCurrentScreen();
         if (current) {
             bool handled = current->OnInput(key);
@@ -195,10 +191,10 @@ void PDAController::ProcessInput() {
                 return;
             }
 
-            if (!handled) {
-                Logger::Debug("Unhandled input: " + key);
-            }
+            if (handled) continue;
         }
+
+        Logger::Debug("Unhandled input: " + key);
     }
 }
 
@@ -296,10 +292,11 @@ void PDAController::RunBootSequence() {
     constexpr int bar_col = (COLS - bar_width) / 2;
 
     // Animate: fill bar left to right with variable pacing
+    float speed = config_.boot_speed;
     std::mt19937 rng(std::random_device{}());
     std::uniform_int_distribution<int> step_dist(0, 5);
-    std::uniform_real_distribution<float> pause_dist(0.1f, 0.4f);
-    std::uniform_real_distribution<float> stall_dist(0.6f, 1.2f);
+    std::uniform_real_distribution<float> pause_dist(0.1f * speed, 0.4f * speed);
+    std::uniform_real_distribution<float> stall_dist(0.6f * speed, 1.2f * speed);
     std::uniform_real_distribution<float> stall_chance(0.0f, 1.0f);
 
     static constexpr int steps[] = {1, 1, 1, 2, 2, 3};

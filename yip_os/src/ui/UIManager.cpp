@@ -361,6 +361,18 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
     } else {
         ImGui::TextDisabled("Reboot PDA");
     }
+
+    ImGui::Separator();
+    ImGui::Text("NVRAM (%d key%s)", static_cast<int>(config.state.size()),
+                config.state.size() == 1 ? "" : "s");
+    if (!config.state.empty()) {
+        for (auto& [key, val] : config.state) {
+            ImGui::BulletText("%s = %s", key.c_str(), val.c_str());
+        }
+        if (ImGui::Button("Clear NVRAM")) {
+            config.ClearState();
+        }
+    }
 }
 
 void UIManager::RenderLogTab() {
