@@ -1,0 +1,339 @@
+#include "ConfScreen.hpp"
+#include "app/PDAController.hpp"
+#include "app/PDADisplay.hpp"
+#include "core/Config.hpp"
+#include "core/Logger.hpp"
+#include <algorithm>
+#include <cstdio>
+
+namespace YipOS {
+
+using namespace Glyphs;
+
+// Layout: inverted labels (buttons) on rows 1,4 aligned with touch contacts.
+// Plain text values on rows 2,5 underneath.
+// Each page has its own macro slot (labels baked in).
+// ML = page up, BL = page down. Arrows on left border at rows 4,7.
+
+ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
+    name = "CONF";
+    macro_index = MACRO_BASE; // page 0 → slot 6
+
+    auto& config = pda_.GetConfig();
+
+    // === Page 1 (macro slot 6) ===
+    // Row 1: BOOT, WRITE, SETTL
+    settings_.push_back({"BOOT", "", {"OFF", "FAST", "NORM", "SLOW"},
+                         {0.0f, 0.5f, 1.0f, 2.0f}, 0, false});
+    {
+        auto& s = settings_.back();
+        if (!config.boot_animation) {
+            s.current = 0;
+        } else {
+            float sp = config.boot_speed;
+            int best = 2;
+            float best_dist = 999;
+            for (int i = 1; i < static_cast<int>(s.values.size()); i++) {
+                float d = std::abs(s.values[i] - sp);
+                if (d < best_dist) { best_dist = d; best = i; }
+            }
+            s.current = best;
+        }
+    }
+
+    settings_.push_back({"WRITE", "", {"FAST", "NORM", "SLOW"},
+                         {0.04f, 0.07f, 0.12f}, 0, false});
+    {
+        auto& s = settings_.back();
+        float wd = config.write_delay;
+        int best = 1;
+        float best_dist = 999;
+        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
+            float d = std::abs(s.values[i] - wd);
+            if (d < best_dist) { best_dist = d; best = i; }
+        }
+        s.current = best;
+    }
+
+    settings_.push_back({"SETTL", "", {"FAST", "NORM", "SLOW"},
+                         {0.02f, 0.04f, 0.08f}, 0, false});
+    {
+        auto& s = settings_.back();
+        float sd = config.settle_delay;
+        int best = 1;
+        float best_dist = 999;
+        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
+            float d = std::abs(s.values[i] - sd);
+            if (d < best_dist) { best_dist = d; best = i; }
+        }
+        s.current = best;
+    }
+
+    // Row 2: LOG, DBNCE, NVRAM
+    settings_.push_back({"LOG", "", {"DBG", "INFO", "WARN", "ERR"},
+                         {}, 0, false});
+    {
+        auto& s = settings_.back();
+        std::string lvl = config.log_level;
+        if (lvl == "DEBUG")   s.current = 0;
+        else if (lvl == "INFO")    s.current = 1;
+        else if (lvl == "WARNING") s.current = 2;
+        else if (lvl == "ERROR")   s.current = 3;
+        else s.current = 1;
+    }
+
+    settings_.push_back({"DBNCE", "input.debounce", {"SHRT", "NORM", "LONG"},
+                         {150.0f, 300.0f, 500.0f}, 0, false});
+    {
+        auto& s = settings_.back();
+        std::string saved = config.GetState("input.debounce", "300");
+        float val = std::stof(saved);
+        int best = 1;
+        float best_dist = 999;
+        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
+            float d = std::abs(s.values[i] - val);
+            if (d < best_dist) { best_dist = d; best = i; }
+        }
+        s.current = best;
+    }
+
+    settings_.push_back({"NVRAM", "", {"CLR"}, {}, 0, true});
+
+    // === Page 2 (macro slot 7) ===
+    // Row 1: REFR, NAV, REBOOT
+    settings_.push_back({"REFR", "", {"1S", "5S", "10S", "30S"},
+                         {1.0f, 5.0f, 10.0f, 30.0f}, 0, false});
+    {
+        auto& s = settings_.back();
+        float ri = config.refresh_interval;
+        int best = 0;
+        float best_dist = 999;
+        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
+            float d = std::abs(s.values[i] - ri);
+            if (d < best_dist) { best_dist = d; best = i; }
+        }
+        s.current = best;
+    }
+
+    settings_.push_back({"REBOOT", "", {"GO!"}, {}, 0, true});
+}
+
+int ConfScreen::PageCount() const {
+    return (static_cast<int>(settings_.size()) + SETTINGS_PER_PAGE - 1) / SETTINGS_PER_PAGE;
+}
+
+void ConfScreen::Render() {
+    // Fallback for non-macro path
+    RenderFrame("CONFIG");
+    RenderValues();
+    RenderPageIndicators();
+    RenderStatusBar();
+}
+
+void ConfScreen::RenderDynamic() {
+    // Values + page indicators + clock + cursor over macro background
+    RenderValues();
+    RenderPageIndicators();
+    RenderClock();
+    RenderCursor();
+}
+
+void ConfScreen::RenderValues() {
+    int base = page_ * SETTINGS_PER_PAGE;
+    auto& d = display_;
+
+    // Row 2: plain text values under touch row 1 labels
+    for (int i = 0; i < 3; i++) {
+        int si = base + i;
+        if (si >= static_cast<int>(settings_.size())) break;
+        std::string val = PadValue(GetSettingValue(si));
+        d.WriteText(BTN_COLS[i] - 2, 2, val);
+    }
+
+    // Row 5: plain text values under touch row 2 labels
+    for (int i = 0; i < 3; i++) {
+        int si = base + 3 + i;
+        if (si >= static_cast<int>(settings_.size())) break;
+        std::string val = PadValue(GetSettingValue(si));
+        d.WriteText(BTN_COLS[i] - 2, 5, val);
+    }
+}
+
+void ConfScreen::RenderPageIndicators() {
+    if (PageCount() <= 1) return;
+    auto& d = display_;
+
+    // Up arrow on left border row 3 if can page up
+    if (page_ > 0) {
+        d.WriteGlyph(0, 3, G_UP);
+    }
+
+    // Down arrow on left border row 5 if can page down
+    if (page_ < PageCount() - 1) {
+        d.WriteGlyph(0, 5, G_DOWN);
+    }
+
+    // Page indicator "n/x" on row 7 after spinner (col 3)
+    char pg[8];
+    std::snprintf(pg, sizeof(pg), "%d/%d", page_ + 1, PageCount());
+    d.WriteText(3, 7, pg);
+}
+
+std::string ConfScreen::PadValue(const std::string& value) {
+    std::string val4 = value;
+    while (val4.size() < 4) val4 += ' ';
+    if (val4.size() > 4) val4 = val4.substr(0, 4);
+    return val4;
+}
+
+std::string ConfScreen::GetSettingValue(int idx) const {
+    if (idx < 0 || idx >= static_cast<int>(settings_.size())) return "----";
+    auto& s = settings_[idx];
+    if (s.current >= 0 && s.current < static_cast<int>(s.presets.size())) {
+        return s.presets[s.current];
+    }
+    return "----";
+}
+
+void ConfScreen::CycleSetting(int setting_idx) {
+    if (setting_idx < 0 || setting_idx >= static_cast<int>(settings_.size())) return;
+    auto& s = settings_[setting_idx];
+
+    if (s.is_action) return;
+
+    s.current = (s.current + 1) % static_cast<int>(s.presets.size());
+    ApplySetting(setting_idx);
+}
+
+void ConfScreen::ApplySetting(int setting_idx) {
+    if (setting_idx < 0 || setting_idx >= static_cast<int>(settings_.size())) return;
+    auto& s = settings_[setting_idx];
+    auto& config = pda_.GetConfig();
+
+    if (s.label == "BOOT") {
+        if (s.current == 0) {
+            config.boot_animation = false;
+        } else {
+            config.boot_animation = true;
+            config.boot_speed = s.values[s.current];
+        }
+        config.SaveToFile(config.config_path);
+        Logger::Info("Boot: " + s.presets[s.current] +
+                     (s.current > 0 ? " (speed=" + std::to_string(config.boot_speed) + ")" : ""));
+    }
+    else if (s.label == "WRITE") {
+        float val = s.values[s.current];
+        config.write_delay = val;
+        display_.SetWriteDelay(val);
+        config.SaveToFile(config.config_path);
+        Logger::Info("Write delay: " + std::to_string(val) + "s");
+    }
+    else if (s.label == "SETTL") {
+        float val = s.values[s.current];
+        config.settle_delay = val;
+        display_.SetSettleDelay(val);
+        config.SaveToFile(config.config_path);
+        Logger::Info("Settle delay: " + std::to_string(val) + "s");
+    }
+    else if (s.label == "LOG") {
+        static const char* levels[] = {"DEBUG", "INFO", "WARNING", "ERROR"};
+        if (s.current >= 0 && s.current < 4) {
+            config.log_level = levels[s.current];
+            Logger::SetLogLevel(Logger::StringToLevel(config.log_level));
+            config.SaveToFile(config.config_path);
+            Logger::Info("Log level: " + config.log_level);
+        }
+    }
+    else if (s.label == "DBNCE") {
+        float val = s.values[s.current];
+        config.SetState("input.debounce", std::to_string(static_cast<int>(val)));
+        Logger::Info("Debounce: " + std::to_string(static_cast<int>(val)) + "ms");
+    }
+    else if (s.label == "REFR") {
+        float val = s.values[s.current];
+        config.refresh_interval = val;
+        config.SaveToFile(config.config_path);
+        Logger::Info("Refresh interval: " + std::to_string(static_cast<int>(val)) + "s");
+    }
+}
+
+bool ConfScreen::OnInput(const std::string& key) {
+    // Pagination via ML (page up) and BL (page down)
+    if (key == "ML" && PageCount() > 1 && page_ > 0) {
+        page_--;
+        macro_index = MACRO_BASE + page_;
+        pda_.StartRender(this);
+        Logger::Info("Config page up: " + std::to_string(page_ + 1));
+        return true;
+    }
+    if (key == "BL" && PageCount() > 1 && page_ < PageCount() - 1) {
+        page_++;
+        macro_index = MACRO_BASE + page_;
+        pda_.StartRender(this);
+        Logger::Info("Config page down: " + std::to_string(page_ + 1));
+        return true;
+    }
+
+    // Touch input: "XY" where X=col(1-5), Y=row(1-3)
+    if (key.size() != 2) return false;
+    int tx = key[0] - '1';
+    int ty = key[1] - '1';
+
+    // Map touch columns 1,3,5 to button indices 0,1,2
+    int btn_idx = -1;
+    if (tx == 0) btn_idx = 0;
+    else if (tx == 2) btn_idx = 1;
+    else if (tx == 4) btn_idx = 2;
+
+    if (btn_idx < 0 || ty < 0 || ty > 1) return false;
+
+    int base = page_ * SETTINGS_PER_PAGE;
+    int setting_idx = base + (ty * 3) + btn_idx;
+
+    if (setting_idx >= static_cast<int>(settings_.size())) return false;
+
+    auto& s = settings_[setting_idx];
+    auto& d = display_;
+
+    // Label position (inverted button on rows 1,4)
+    int label_row = (ty == 0) ? 1 : 4;
+    int col_center = BTN_COLS[btn_idx];
+    int lstart = col_center - static_cast<int>(s.label.size()) / 2;
+
+    // Value position (plain text on rows 2,5)
+    int value_row = (ty == 0) ? 2 : 5;
+
+    if (s.is_action) {
+        // Flash label: un-invert
+        d.WriteText(lstart, label_row, s.label, false);
+
+        if (s.label == "NVRAM") {
+            pda_.GetConfig().ClearState();
+            Logger::Info("NVRAM cleared via CONFIG screen");
+            d.WriteText(lstart, label_row, s.label, true);
+            d.WriteText(col_center - 2, value_row, "DONE");
+        } else if (s.label == "REBOOT") {
+            Logger::Info("Reboot requested via CONFIG screen");
+            d.WriteText(lstart, label_row, s.label, true);
+            d.WriteText(col_center - 2, value_row, "... ");
+            pda_.Reboot();
+        }
+        return true;
+    }
+
+    // Flash label: un-invert
+    d.WriteText(lstart, label_row, s.label, false);
+
+    // Cycle to next preset
+    CycleSetting(setting_idx);
+
+    // Re-invert label
+    d.WriteText(lstart, label_row, s.label, true);
+
+    // Update value (plain text)
+    d.WriteText(col_center - 2, value_row, PadValue(GetSettingValue(setting_idx)));
+
+    return true;
+}
+
+} // namespace YipOS
