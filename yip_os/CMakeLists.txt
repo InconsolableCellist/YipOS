@@ -23,6 +23,21 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
+# whisper.cpp via FetchContent
+set(WHISPER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(WHISPER_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+set(GGML_CUDA OFF CACHE BOOL "" FORCE)
+set(GGML_METAL OFF CACHE BOOL "" FORCE)
+set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    whisper
+    GIT_REPOSITORY https://github.com/ggml-org/whisper.cpp.git
+    GIT_TAG v1.7.5
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(whisper)
+
 # ImGui (copied from StayPutVR)
 add_subdirectory(thirdparty/imgui)
 
@@ -72,14 +87,24 @@ set(YIPOS_SOURCES
     src/screens/VRCXFeedScreen.cpp
     src/screens/VRCXFeedDetailScreen.cpp
     src/screens/VRCXFriendDetailScreen.cpp
+    src/screens/CCScreen.cpp
+    src/screens/CCConfScreen.cpp
+    src/audio/AudioCapture.cpp
+    src/audio/WhisperWorker.cpp
     src/ui/UIManager.cpp
 )
 
 # Platform-specific sources
 if(UNIX)
-    list(APPEND YIPOS_SOURCES src/platform/SystemStats_linux.cpp)
+    list(APPEND YIPOS_SOURCES
+        src/platform/SystemStats_linux.cpp
+        src/audio/AudioCapture_linux.cpp
+    )
 elseif(WIN32)
-    list(APPEND YIPOS_SOURCES src/platform/SystemStats_windows.cpp)
+    list(APPEND YIPOS_SOURCES
+        src/platform/SystemStats_windows.cpp
+        src/audio/AudioCapture_windows.cpp
+    )
 endif()
 
 add_executable(yip_os ${YIPOS_SOURCES})
@@ -98,6 +123,7 @@ target_link_libraries(yip_os PRIVATE
     glfw
     inih
     sqlite3
+    whisper
     OpenGL::GL
 )
 

@@ -103,7 +103,7 @@ TILE_ROWS = 3
 TILE_LABELS = [
     ["STATS", "NET", "TRACK", "SPVR", "CONF"],
     ["VRCX", "HEART", "MAP", "DBG", "-----"],
-    ["-----", "-----", "-----", "-----", "-----"],
+    ["CC", "-----", "-----", "-----", "-----"],
 ]
 CHARS_PER_TILE = COLS // TILE_COLS  # 8
 # Column centers for even spacing across 40 cols (contact grid alignment)
@@ -418,6 +418,26 @@ def layout_vrcx_friend_detail(buf):
     buf.put_status_bar()
 
 
+def layout_cc(buf):
+    """Closed Captions: frame + CONF button in status bar, no clock."""
+    buf.put_frame("CC")
+    # Status bar with CONF button instead of clock
+    buf.put_glyph(0, 7, G_BL_CORNER)
+    for c in range(2, COLS - 5):
+        buf.put_glyph(c, 7, G_HLINE)
+    buf.put_text(COLS - 5, 7, "CONF", inverted=True)
+    buf.put_glyph(COLS - 1, 7, G_BR_CORNER)
+
+
+def layout_cc_conf(buf):
+    """CC Config: frame + START/STOP button + status bar."""
+    buf.put_frame("CC CONF")
+    # START button (touch 53, right-aligned)
+    buf.put_text(COLS - 1 - len("START"), 5, "START", inverted=True)
+    buf.put_text(COLS - 1 - len("(TOGGLE)"), 6, "(TOGGLE)", inverted=True)
+    buf.put_status_bar()
+
+
 def _layout_conf_page(buf, title, labels_row1, labels_row2):
     """Shared layout for config pages: frame + inverted labels + separator + status bar.
 
@@ -498,9 +518,11 @@ SCREEN_LAYOUTS = {
     11: ("FEED", layout_vrcx_feed),
     12: ("FEED DTL", layout_vrcx_feed_detail),
     13: ("FRIEND", layout_vrcx_friend_detail),
+    14: ("CC", layout_cc),
+    15: ("CC CONF", layout_cc_conf),
     # Future:
-    # 14: ("STATUS", layout_vrcx_status),
-    # 15: ("NOTIF", layout_vrcx_notif),
+    # 16: ("STATUS", layout_vrcx_status),
+    # 17: ("NOTIF", layout_vrcx_notif),
 }
 
 

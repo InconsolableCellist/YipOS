@@ -17,6 +17,8 @@ class SystemStats;
 class VRCXData;
 struct VRCXWorldEntry;
 struct VRCXFeedEntry;
+class WhisperWorker;
+class AudioCapture;
 
 class PDAController {
 public:
@@ -62,6 +64,10 @@ public:
     const VRCXWorldEntry* GetSelectedWorld() const { return selected_world_; }
     void SetSelectedFeed(const VRCXFeedEntry* f) { selected_feed_ = f; }
     const VRCXFeedEntry* GetSelectedFeed() const { return selected_feed_; }
+    WhisperWorker* GetWhisperWorker() { return whisper_worker_; }
+    void SetWhisperWorker(WhisperWorker* w) { whisper_worker_ = w; }
+    AudioCapture* GetAudioCapture() { return audio_capture_; }
+    void SetAudioCapture(AudioCapture* a) { audio_capture_ = a; }
     Screen* GetCurrentScreen() const;
     int GetScreenStackDepth() const { return static_cast<int>(screen_stack_.size()); }
     char GetSpinnerChar() const;
@@ -105,6 +111,8 @@ private:
     VRCXData* vrcx_data_ = nullptr;
     const VRCXWorldEntry* selected_world_ = nullptr;
     const VRCXFeedEntry* selected_feed_ = nullptr;
+    WhisperWorker* whisper_worker_ = nullptr;
+    AudioCapture* audio_capture_ = nullptr;
 };
 
 } // namespace YipOS

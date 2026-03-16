@@ -14,6 +14,8 @@
 #include "net/OSCManager.hpp"
 #include "net/NetTracker.hpp"
 #include "net/VRCXData.hpp"
+#include "audio/AudioCapture.hpp"
+#include "audio/WhisperWorker.hpp"
 #include "platform/SystemStats.hpp"
 #include "ui/UIManager.hpp"
 
@@ -104,6 +106,12 @@ int main(int argc, char* argv[]) {
         }
         pda.SetVRCXData(&vrcx_data);
 
+        // CC (Closed Captions) — audio capture + whisper
+        auto audio_capture = YipOS::AudioCapture::Create();
+        YipOS::WhisperWorker whisper_worker;
+        pda.SetAudioCapture(audio_capture.get());
+        pda.SetWhisperWorker(&whisper_worker);
+
         // Restore persisted state
         std::string saved_disk = config.GetState("stats.disk");
         if (!saved_disk.empty()) {
@@ -190,6 +198,8 @@ int main(int argc, char* argv[]) {
 
         // Shutdown
         YipOS::Logger::Info("Shutting down");
+        whisper_worker.Stop();
+        audio_capture->Stop();
         ui.Shutdown();
         osc.Shutdown();
         config.SaveToFile(configPath);
