@@ -33,13 +33,6 @@ void CCConfScreen::WriteInverted(int col, int row, const std::string& text) {
     }
 }
 
-void CCConfScreen::FlashButton(int col, int row, const std::string& text) {
-    for (int i = 0; i < static_cast<int>(text.size()); i++)
-        display_.WriteChar(col + i, row, static_cast<int>(text[i]));
-    for (int i = 0; i < static_cast<int>(text.size()); i++)
-        display_.WriteChar(col + i, row, static_cast<int>(text[i]) + INVERT_OFFSET);
-}
-
 void CCConfScreen::RenderContent() {
     auto& d = display_;
     int max_w = COLS - 2;
@@ -85,58 +78,19 @@ void CCConfScreen::RenderContent() {
         astatus += "STOPPED";
     d.WriteText(1, 4, astatus);
 
-    // Row 5-6: START/STOP button (touch 53)
-    bool active = (whisper && whisper->IsRunning());
-    std::string btn = active ? "STOP" : "START";
-    WriteInverted(COLS - 1 - static_cast<int>(btn.size()), 5, btn);
-    std::string btn2 = "(TOGGLE)";
-    WriteInverted(COLS - 1 - static_cast<int>(btn2.size()), 6, btn2);
+    // Row 5: Window size
+    if (whisper) {
+        char wbuf[32];
+        std::snprintf(wbuf, sizeof(wbuf), "Window: %ds", whisper->GetChunkSeconds());
+        d.WriteText(1, 5, wbuf);
+    }
+
+    // Row 6: Info
+    d.WriteText(1, 6, "Config in desktop app");
 }
 
 bool CCConfScreen::OnInput(const std::string& key) {
-    // Touch 53 → START/STOP toggle
-    if (key == "53") {
-        auto* whisper = pda_.GetWhisperWorker();
-        auto* audio = pda_.GetAudioCapture();
-        if (!whisper || !audio) return true;
-
-        display_.CancelBuffered();
-        display_.BeginBuffered();
-
-        bool active = whisper->IsRunning();
-        std::string btn = active ? "STOP" : "START";
-        std::string btn2 = "(TOGGLE)";
-        FlashButton(COLS - 1 - static_cast<int>(btn.size()), 5, btn);
-        FlashButton(COLS - 1 - static_cast<int>(btn2.size()), 6, btn2);
-
-        if (active) {
-            whisper->Stop();
-            audio->Stop();
-            Logger::Info("CC: Stopped");
-        } else {
-            // Load model if not loaded
-            if (!whisper->IsModelLoaded()) {
-                std::string path = WhisperWorker::DefaultModelPath("tiny.en");
-                if (!whisper->LoadModel(path)) {
-                    // Try base.en
-                    path = WhisperWorker::DefaultModelPath("base.en");
-                    whisper->LoadModel(path);
-                }
-            }
-
-            if (whisper->IsModelLoaded()) {
-                audio->Start();
-                whisper->Start(audio->GetBuffer());
-                Logger::Info("CC: Started");
-            } else {
-                Logger::Warning("CC: No model available");
-            }
-        }
-
-        pda_.StartRender(this);
-        return true;
-    }
-
+    // No interactive buttons — config is managed from the desktop UI
     return false;
 }
 

@@ -161,8 +161,28 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
             RenderStatusTab(pda, osc);
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem("Config")) {
-            RenderConfigTab(pda, config);
+        if (ImGui::BeginTabItem("OSC")) {
+            RenderOSCTab(pda, config, osc);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Display")) {
+            RenderDisplayTab(pda, config);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("VRCX")) {
+            RenderVRCXTab(pda, config);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("CC")) {
+            RenderCCTab(pda, config);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Avatar")) {
+            RenderAvatarTab(pda, config);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("NVRAM")) {
+            RenderNVRAMTab(pda, config);
             ImGui::EndTabItem();
         }
         if (ImGui::BeginTabItem("Log")) {
@@ -365,29 +385,64 @@ void UIManager::RenderStatusTab(PDAController& pda, OSCManager& osc) {
     ImGui::TextDisabled("foxipso.com");
 }
 
-void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
+// --- OSC Tab ---
+void UIManager::RenderOSCTab(PDAController& pda, Config& config, OSCManager& osc) {
+    ImGui::Text("OSC Configuration");
+    ImGui::TextDisabled("Controls how YipOS communicates with VRChat via Open Sound Control.");
+
+    ImGui::Separator();
+
     static char ip_buf[64] = {};
     if (ip_buf[0] == 0) {
         std::snprintf(ip_buf, sizeof(ip_buf), "%s", config.osc_ip.c_str());
     }
 
-    ImGui::InputText("OSC IP", ip_buf, sizeof(ip_buf));
+    ImGui::InputText("IP Address", ip_buf, sizeof(ip_buf));
     ImGui::InputInt("Send Port", &config.osc_send_port);
+    ImGui::TextDisabled("Port to send OSC messages to (VRChat default: 9000)");
     ImGui::InputInt("Listen Port", &config.osc_listen_port);
+    ImGui::TextDisabled("Port to receive OSC messages on (requires restart)");
 
     ImGui::Separator();
-    ImGui::Text("Display Calibration");
+
+    if (osc.IsRunning()) {
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Status: Connected");
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Status: Disconnected");
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::Button("Save")) {
+        config.osc_ip = ip_buf;
+        if (!config_path_.empty()) config.SaveToFile(config_path_);
+    }
+}
+
+// --- Display Tab ---
+void UIManager::RenderDisplayTab(PDAController& pda, Config& config) {
+    ImGui::Text("Display & Timing");
+    ImGui::TextDisabled("Calibrate the Williams Tube write head position and timing.");
+
+    ImGui::Separator();
+
+    ImGui::Text("Y Calibration");
+    ImGui::TextDisabled("Adjusts vertical positioning of text on the CRT display.");
     ImGui::SliderFloat("Y Offset", &config.y_offset, -0.5f, 0.5f);
     ImGui::SliderFloat("Y Scale", &config.y_scale, 0.1f, 2.0f);
     ImGui::SliderFloat("Y Curve", &config.y_curve, 0.1f, 3.0f);
 
     ImGui::Separator();
-    ImGui::Text("Timing");
+
+    ImGui::Text("Write Timing");
+    ImGui::TextDisabled("Controls how fast characters are written to the display.");
     ImGui::SliderFloat("Write Delay", &config.write_delay, 0.01f, 0.2f, "%.3f s");
     ImGui::SliderFloat("Settle Delay", &config.settle_delay, 0.01f, 0.1f, "%.3f s");
     ImGui::SliderFloat("Refresh Interval", &config.refresh_interval, 0.0f, 30.0f, "%.1f s");
+    ImGui::TextDisabled("How often the full screen is re-rendered (0 = never).");
 
     ImGui::Separator();
+
     static const char* levels[] = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"};
     static int current_level = 1;
     if (ImGui::Combo("Log Level", &current_level, levels, 5)) {
@@ -396,22 +451,31 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
     }
 
     ImGui::Separator();
-    ImGui::Text("Startup");
-    ImGui::Checkbox("Boot Animation", &config.boot_animation);
+
+    if (ImGui::Button("Save")) {
+        if (!config_path_.empty()) config.SaveToFile(config_path_);
+    }
+    ImGui::SameLine();
+    if (!pda.IsBooting()) {
+        if (ImGui::Button("Reboot PDA")) {
+            pda.Reboot();
+        }
+    }
+}
+
+// --- VRCX Tab ---
+void UIManager::RenderVRCXTab(PDAController& pda, Config& config) {
+    ImGui::Text("VRCX Integration");
+    ImGui::TextDisabled("Reads world history and feed from VRCX's local SQLite database.");
+    ImGui::TextDisabled("Requires VRCX to be installed. Data is read-only.");
 
     ImGui::Separator();
-    ImGui::Text("VRCX Integration");
-    ImGui::TextDisabled("Reads world history, feed, etc. from VRCX's local database.");
 
     if (ImGui::Checkbox("Enable VRCX", &config.vrcx_enabled)) {
-        // Auto-save immediately so the setting persists across restarts
-        if (!config_path_.empty()) {
-            config.SaveToFile(config_path_);
-        }
+        if (!config_path_.empty()) config.SaveToFile(config_path_);
     }
 
     if (config.vrcx_enabled) {
-        // Initialize path buffer from config on first frame
         if (!vrcx_path_initialized_) {
             std::string initial = config.vrcx_db_path.empty()
                 ? VRCXData::DefaultDBPath() : config.vrcx_db_path;
@@ -446,9 +510,7 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
                     Logger::Warning("VRCX connect failed: " + path);
                 }
             }
-            if (!config_path_.empty()) {
-                config.SaveToFile(config_path_);
-            }
+            if (!config_path_.empty()) config.SaveToFile(config_path_);
         }
         ImGui::SameLine();
         if (ImGui::Button("Disconnect")) {
@@ -457,162 +519,156 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
     } else {
         vrcx_path_initialized_ = false;
         VRCXData* vrcx = pda.GetVRCXData();
-        if (vrcx && vrcx->IsOpen()) {
-            vrcx->Close();
-        }
+        if (vrcx && vrcx->IsOpen()) vrcx->Close();
     }
+}
 
-    // --- CC (Closed Captions) ---
-    ImGui::Separator();
+// --- CC Tab ---
+void UIManager::RenderCCTab(PDAController& pda, Config& config) {
     ImGui::Text("Closed Captions (CC)");
-    ImGui::TextDisabled("Live transcription via whisper.cpp + audio capture.");
+    ImGui::TextDisabled("Live speech-to-text using whisper.cpp. Transcription starts");
+    ImGui::TextDisabled("automatically when you navigate to the CC screen in-game.");
+
+    ImGui::Separator();
 
     auto* whisper = pda.GetWhisperWorker();
     auto* audio = pda.GetAudioCapture();
+    if (!whisper || !audio) return;
 
-    if (whisper && audio) {
-        // Model status
-        if (whisper->IsModelLoaded()) {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Model: %s", whisper->GetModelName().c_str());
+    // Model
+    ImGui::Text("Model");
+    if (whisper->IsModelLoaded()) {
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Loaded: %s", whisper->GetModelName().c_str());
+    } else {
+        std::string saved = config.GetState("cc.model");
+        if (!saved.empty()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Saved: %s (not loaded yet)", saved.c_str());
         } else {
-            std::string saved = config.GetState("cc.model");
-            if (!saved.empty()) {
-                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Model: %s (not loaded)", saved.c_str());
-            } else {
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Model: not loaded");
-            }
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "No model configured");
         }
+    }
 
-        // Model loading buttons
-        if (ImGui::Button("Load tiny.en")) {
-            if (whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en"))) {
-                config.SetState("cc.model", whisper->GetModelName());
-            }
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Load base.en")) {
-            if (whisper->LoadModel(WhisperWorker::DefaultModelPath("base.en"))) {
-                config.SetState("cc.model", whisper->GetModelName());
-            }
-        }
-        ImGui::SameLine();
-        ImGui::TextDisabled("Place models in config/models/");
+    if (ImGui::Button("Load tiny.en")) {
+        if (whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en")))
+            config.SetState("cc.model", whisper->GetModelName());
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load base.en")) {
+        if (whisper->LoadModel(WhisperWorker::DefaultModelPath("base.en")))
+            config.SetState("cc.model", whisper->GetModelName());
+    }
+    ImGui::TextDisabled("Place ggml-*.bin files in your config/models/ folder.");
 
-        // Audio device selection — auto-enumerate on first view and restore saved selection
-        ImGui::Text("Audio Device:");
-        {
-            static std::vector<AudioDevice> devices;
-            static int selected_idx = -1;
-            static bool devices_initialized = false;
+    ImGui::Separator();
 
-            if (!devices_initialized) {
-                devices = audio->GetDevices();
-                // Restore saved device
-                std::string saved_id = config.GetState("cc.device");
-                if (!saved_id.empty()) {
-                    for (int i = 0; i < static_cast<int>(devices.size()); i++) {
-                        if (devices[i].id == saved_id) {
-                            selected_idx = i;
-                            audio->SetDevice(saved_id);
-                            break;
-                        }
-                    }
-                }
-                devices_initialized = true;
-            }
+    // Audio device
+    ImGui::Text("Audio Device");
+    ImGui::TextDisabled("Select the audio source for transcription (mic or system loopback).");
+    {
+        static std::vector<AudioDevice> devices;
+        static int selected_idx = -1;
+        static bool devices_initialized = false;
 
-            if (ImGui::Button("Refresh Devices")) {
-                devices = audio->GetDevices();
-                // Try to keep current selection
-                std::string cur_id = audio->GetCurrentDeviceId();
-                selected_idx = -1;
+        if (!devices_initialized) {
+            devices = audio->GetDevices();
+            std::string saved_id = config.GetState("cc.device");
+            if (!saved_id.empty()) {
                 for (int i = 0; i < static_cast<int>(devices.size()); i++) {
-                    if (devices[i].id == cur_id) {
+                    if (devices[i].id == saved_id) {
                         selected_idx = i;
+                        audio->SetDevice(saved_id);
                         break;
                     }
                 }
             }
-            if (!devices.empty()) {
-                std::string combo_preview;
-                if (selected_idx >= 0 && selected_idx < static_cast<int>(devices.size()))
-                    combo_preview = devices[selected_idx].name;
-                else
-                    combo_preview = audio->GetCurrentDeviceName();
+            devices_initialized = true;
+        }
 
-                if (ImGui::BeginCombo("##cc_device", combo_preview.c_str())) {
-                    for (int i = 0; i < static_cast<int>(devices.size()); i++) {
-                        bool is_selected = (i == selected_idx);
-                        if (ImGui::Selectable(devices[i].name.c_str(), is_selected)) {
-                            selected_idx = i;
-                            audio->SetDevice(devices[i].id);
-                            config.SetState("cc.device", devices[i].id);
-                        }
-                        if (is_selected) ImGui::SetItemDefaultFocus();
+        if (ImGui::Button("Refresh Devices")) {
+            devices = audio->GetDevices();
+            std::string cur_id = audio->GetCurrentDeviceId();
+            selected_idx = -1;
+            for (int i = 0; i < static_cast<int>(devices.size()); i++) {
+                if (devices[i].id == cur_id) { selected_idx = i; break; }
+            }
+        }
+        if (!devices.empty()) {
+            std::string combo_preview;
+            if (selected_idx >= 0 && selected_idx < static_cast<int>(devices.size()))
+                combo_preview = devices[selected_idx].name;
+            else
+                combo_preview = audio->GetCurrentDeviceName();
+
+            if (ImGui::BeginCombo("##cc_device", combo_preview.c_str())) {
+                for (int i = 0; i < static_cast<int>(devices.size()); i++) {
+                    bool is_selected = (i == selected_idx);
+                    if (ImGui::Selectable(devices[i].name.c_str(), is_selected)) {
+                        selected_idx = i;
+                        audio->SetDevice(devices[i].id);
+                        config.SetState("cc.device", devices[i].id);
                     }
-                    ImGui::EndCombo();
+                    if (is_selected) ImGui::SetItemDefaultFocus();
                 }
-            } else {
-                ImGui::TextDisabled("No devices found");
-            }
-        }
-
-        ImGui::Text("Current: %s", audio->GetCurrentDeviceName().c_str());
-
-        // Chunk window size
-        int chunk_sec = whisper->GetChunkSeconds();
-        if (ImGui::SliderInt("Window (sec)", &chunk_sec, 2, 10)) {
-            whisper->SetChunkSeconds(chunk_sec);
-            config.SetState("cc.window", std::to_string(chunk_sec));
-        }
-        ImGui::TextDisabled("Longer = more accurate but slower to appear");
-
-        // Status
-        bool capturing = audio->IsRunning();
-        bool transcribing = whisper->IsRunning();
-        if (transcribing) {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Status: LISTENING");
-        } else if (whisper->IsModelLoaded()) {
-            ImGui::Text("Status: Ready");
-        } else {
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Status: No model");
-        }
-
-        if (capturing) {
-            ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), " | Audio: CAPTURING");
-        }
-
-        // Start/Stop
-        if (!transcribing) {
-            if (ImGui::Button("Start CC")) {
-                if (!whisper->IsModelLoaded()) {
-                    std::string saved = config.GetState("cc.model", "tiny.en");
-                    whisper->LoadModel(WhisperWorker::DefaultModelPath(saved));
-                }
-                if (whisper->IsModelLoaded()) {
-                    audio->Start();
-                    whisper->Start(audio->GetBuffer());
-                }
+                ImGui::EndCombo();
             }
         } else {
-            if (ImGui::Button("Stop CC")) {
-                whisper->Stop();
-                audio->Stop();
-            }
-        }
-
-        // Latest text preview
-        std::string latest = whisper->PeekLatest();
-        if (!latest.empty()) {
-            ImGui::Separator();
-            ImGui::TextWrapped("Latest: %s", latest.c_str());
+            ImGui::TextDisabled("No devices found. Click Refresh.");
         }
     }
+    ImGui::Text("Current: %s", audio->GetCurrentDeviceName().c_str());
 
-    // --- Avatar Management ---
     ImGui::Separator();
+
+    // Window size
+    ImGui::Text("Processing Window");
+    int chunk_sec = whisper->GetChunkSeconds();
+    if (ImGui::SliderInt("Window (sec)", &chunk_sec, 2, 10)) {
+        whisper->SetChunkSeconds(chunk_sec);
+        config.SetState("cc.window", std::to_string(chunk_sec));
+    }
+    ImGui::TextDisabled("Longer window = more accurate but slower to appear.");
+
+    ImGui::Separator();
+
+    // Status
+    bool transcribing = whisper->IsRunning();
+    bool capturing = audio->IsRunning();
+    if (transcribing) {
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Status: LISTENING");
+    } else if (whisper->IsModelLoaded()) {
+        ImGui::Text("Status: Ready (navigate to CC screen to start)");
+    } else {
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Status: No model loaded");
+    }
+    if (capturing) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), "| Audio: CAPTURING");
+    }
+
+    // Manual stop (in case you want to stop without leaving the CC screen)
+    if (transcribing) {
+        if (ImGui::Button("Force Stop CC")) {
+            whisper->Stop();
+            audio->Stop();
+        }
+        ImGui::TextDisabled("CC normally stops automatically when you leave the CC screen.");
+    }
+
+    // Latest text preview
+    std::string latest = whisper->PeekLatest();
+    if (!latest.empty()) {
+        ImGui::Separator();
+        ImGui::TextWrapped("Latest: %s", latest.c_str());
+    }
+}
+
+// --- Avatar Tab ---
+void UIManager::RenderAvatarTab(PDAController& pda, Config& config) {
     ImGui::Text("Avatar Management");
+    ImGui::TextDisabled("Browse and switch VRChat avatars via OSC. Reads avatar data");
+    ImGui::TextDisabled("from VRChat's local OSC cache directory.");
+
+    ImGui::Separator();
 
     if (!avtr_path_initialized_) {
         std::string initial = config.vrc_osc_path;
@@ -643,44 +699,34 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
         config.vrc_osc_path = path;
         if (avtr) avtr->Scan(path);
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Save Path")) {
+        config.vrc_osc_path = avtr_path_buf_.data();
+        if (!config_path_.empty()) config.SaveToFile(config_path_);
+    }
+}
+
+// --- NVRAM Tab ---
+void UIManager::RenderNVRAMTab(PDAController& pda, Config& config) {
+    ImGui::Text("NVRAM (Persistent State)");
+    ImGui::TextDisabled("Key-value store saved to config.ini [state] section.");
+    ImGui::TextDisabled("Used by screens to remember preferences across restarts.");
 
     ImGui::Separator();
-    if (ImGui::Button("Save Config")) {
-        config.osc_ip = ip_buf;
-        if (vrcx_path_initialized_) {
-            config.vrcx_db_path = vrcx_path_buf_.data();
-        }
-        if (avtr_path_initialized_) {
-            config.vrc_osc_path = avtr_path_buf_.data();
-        }
-        if (!config_path_.empty()) {
-            config.SaveToFile(config_path_);
-        }
-    }
-    ImGui::SameLine();
-    if (ImGui::Button("Reset Defaults")) {
-        config = Config{};
-        std::snprintf(ip_buf, sizeof(ip_buf), "%s", config.osc_ip.c_str());
-    }
-    ImGui::SameLine();
-    if (!pda.IsBooting()) {
-        if (ImGui::Button("Reboot PDA")) {
-            pda.Reboot();
-        }
-    } else {
-        ImGui::TextDisabled("Reboot PDA");
-    }
 
-    ImGui::Separator();
-    ImGui::Text("NVRAM (%d key%s)", static_cast<int>(config.state.size()),
+    ImGui::Text("%d key%s stored", static_cast<int>(config.state.size()),
                 config.state.size() == 1 ? "" : "s");
+
     if (!config.state.empty()) {
+        ImGui::Separator();
         for (auto& [key, val] : config.state) {
             ImGui::BulletText("%s = %s", key.c_str(), val.c_str());
         }
-        if (ImGui::Button("Clear NVRAM")) {
+        ImGui::Separator();
+        if (ImGui::Button("Clear All NVRAM")) {
             config.ClearState();
         }
+        ImGui::TextDisabled("This will reset all saved preferences (disk, network, CC settings, etc.).");
     }
 }
 

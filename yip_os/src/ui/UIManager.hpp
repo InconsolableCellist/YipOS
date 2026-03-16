@@ -37,7 +37,12 @@ public:
 
 private:
     void RenderStatusTab(PDAController& pda, OSCManager& osc);
-    void RenderConfigTab(PDAController& pda, Config& config);
+    void RenderOSCTab(PDAController& pda, Config& config, OSCManager& osc);
+    void RenderDisplayTab(PDAController& pda, Config& config);
+    void RenderVRCXTab(PDAController& pda, Config& config);
+    void RenderCCTab(PDAController& pda, Config& config);
+    void RenderAvatarTab(PDAController& pda, Config& config);
+    void RenderNVRAMTab(PDAController& pda, Config& config);
     void RenderLogTab();
 
     void HandleKeyboardShortcuts(PDAController& pda);
