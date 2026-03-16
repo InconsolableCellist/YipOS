@@ -1,0 +1,1164 @@
+% ============================================================================
+%  YIP-BOI OS OPERATOR'S MANUAL
+%  A Williams Tube PDA Operating System for VRChat
+%  Styled after vintage spiral-bound computer manuals (C64, Apple II, TRS-80)
+% ============================================================================
+\documentclass[10pt]{article}
+
+% --- Page geometry: wide landscape-ish spiral-bound notebook ---
+% Target ~8.5 x 5.5" (half-letter, landscape feel)
+\usepackage[
+  paperwidth=8.5in,
+  paperheight=5.5in,
+  left=1.2in,          % extra left margin for spiral binding
+  right=0.7in,
+  top=0.6in,
+  bottom=0.6in,
+  headheight=12pt,
+  headsep=8pt,
+  footskip=20pt,
+]{geometry}
+
+% --- Fonts ---
+\usepackage[T1]{fontenc}
+\usepackage{inconsolata}
+\renewcommand{\familydefault}{\ttdefault}
+
+% --- Packages ---
+\usepackage{xcolor}
+\usepackage{graphicx}
+\graphicspath{{assets/}}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{needspace}
+\usepackage{float}
+\usepackage{adjustbox}
+\usepackage{parskip}
+\usepackage{tikz}
+\usepackage{etoolbox}
+
+% --- Color Palette ---
+\definecolor{crtgreen}{RGB}{51, 255, 51}
+\definecolor{darkgreen}{RGB}{0, 100, 0}
+\definecolor{screenbg}{RGB}{10, 20, 10}
+\definecolor{mantitle}{RGB}{0, 80, 0}
+\definecolor{rulecolor}{RGB}{0, 60, 0}
+\definecolor{notebg}{RGB}{235, 245, 235}
+\definecolor{warnbg}{RGB}{255, 245, 230}
+\definecolor{warnborder}{RGB}{200, 120, 0}
+\definecolor{spiralgray}{RGB}{140, 140, 140}
+\definecolor{holebg}{RGB}{230, 230, 230}
+\definecolor{pagebg}{RGB}{252, 250, 245}   % slightly warm off-white
+
+% --- Page background color ---
+\usepackage{eso-pic}
+\AddToShipoutPictureBG{%
+  \AtPageLowerLeft{%
+    \color{pagebg}\rule{\paperwidth}{\paperheight}%
+  }%
+}
+
+% --- Hyperlinks ---
+\hypersetup{
+  colorlinks=true,
+  linkcolor=darkgreen,
+  urlcolor=darkgreen,
+}
+
+% ============================================================================
+% FIGURE HELPER
+% ============================================================================
+% \manualfig{filename}{caption}{width} - optional width defaults to 0.8\textwidth
+% Figures are centered, with caption below. Uses [H] for exact placement.
+% If the image file doesn't exist, a placeholder box is drawn instead.
+\newcommand{\manualfig}[3][0.8\textwidth]{%
+  \begin{figure}[H]
+    \centering
+    \IfFileExists{assets/#2}{%
+      \includegraphics[width=#1]{#2}%
+    }{%
+      \fcolorbox{spiralgray}{holebg}{%
+        \parbox[c][1.5in]{#1}{%
+          \centering\ttfamily\small\color{spiralgray}%
+          [placeholder]\\[0.3em]%
+          \footnotesize #2%
+        }%
+      }%
+    }%
+    \par\vspace{0.3em}
+    {\footnotesize\ttfamily #3}
+  \end{figure}
+}
+
+% ============================================================================
+% SPIRAL BINDING DECORATION
+% ============================================================================
+% Draw punch holes and spiral wire segments along the left margin
+\newcommand{\drawspiral}{%
+  \begin{tikzpicture}[remember picture, overlay]
+    % Number of holes based on page height
+    \foreach \i in {1,2,...,14} {
+      \pgfmathsetmacro{\ypos}{\paperheight - \i * \paperheight / 15}
+      % Punch hole (dark circle with light fill)
+      \fill[holebg] ([xshift=0.42in, yshift=\ypos pt] current page.south west)
+        circle (4pt);
+      \draw[spiralgray, thick] ([xshift=0.42in, yshift=\ypos pt] current page.south west)
+        circle (4pt);
+      % Spiral wire segment (arc from hole)
+      \draw[spiralgray, line width=1.2pt]
+        ([xshift=0.42in, yshift=\ypos pt + 4pt] current page.south west)
+        arc (90:270:4pt and 3pt);
+    }
+  \end{tikzpicture}%
+}
+
+% Apply spiral to every page
+\AddToShipoutPictureFG{\drawspiral}
+
+% ============================================================================
+% HEADERS AND FOOTERS
+% ============================================================================
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\texttt{YIP-BOI OS}}
+\fancyhead[R]{\small\texttt{OPERATOR'S MANUAL}}
+\fancyfoot[R]{\small\texttt{\thepage}}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ============================================================================
+% SECTION STYLING
+% ============================================================================
+\titleformat{\section}
+  {\Large\bfseries\ttfamily\color{mantitle}}
+  {\thesection.}{0.5em}{}
+  [\vspace{-0.5em}\textcolor{rulecolor}{\rule{\textwidth}{1.2pt}}]
+
+\titleformat{\subsection}
+  {\large\bfseries\ttfamily}
+  {\thesubsection}{0.5em}{}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\ttfamily}
+  {\thesubsubsection}{0.5em}{}
+
+\titlespacing*{\section}{0pt}{1.5em}{0.8em}
+\titlespacing*{\subsection}{0pt}{1em}{0.4em}
+\titlespacing*{\subsubsection}{0pt}{0.8em}{0.3em}
+
+% ============================================================================
+% CUSTOM ENVIRONMENTS
+% ============================================================================
+
+% CRT screen display box
+\newtcolorbox{screenbox}[1][]{
+  colback=screenbg,
+  colframe=darkgreen,
+  coltitle=crtgreen,
+  coltext=crtgreen,
+  fontupper=\ttfamily\footnotesize,
+  boxrule=1.5pt,
+  arc=0pt,
+  left=5pt, right=5pt, top=3pt, bottom=3pt,
+  #1
+}
+
+% Note box
+\newtcolorbox{notebox}[1][NOTE]{
+  colback=notebg,
+  colframe=darkgreen,
+  fonttitle=\bfseries\ttfamily\small,
+  title={#1},
+  boxrule=0.8pt,
+  arc=0pt,
+  left=5pt, right=5pt, top=2pt, bottom=2pt,
+}
+
+% Warning / Important box
+\newtcolorbox{warnbox}[1][IMPORTANT]{
+  colback=warnbg,
+  colframe=warnborder,
+  fonttitle=\bfseries\ttfamily\small,
+  title={#1},
+  boxrule=0.8pt,
+  arc=0pt,
+  left=5pt, right=5pt, top=2pt, bottom=2pt,
+}
+
+% Keyboard key
+\newcommand{\key}[1]{\fbox{\texttt{\footnotesize #1}}}
+
+% ============================================================================
+\begin{document}
+
+% ============================================================================
+% INSIDE FRONT COVER (copyright page)
+% ============================================================================
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{center}
+{\footnotesize\ttfamily
+Copyright \copyright\ 2026 by Foxipso Digital Instruments, Inc.\\
+All rights reserved.\\[1em]
+This manual is copyrighted and contains proprietary information. No part of this
+publication may be reproduced, stored in a retrieval system, or transmitted in any
+form or by any means, electronic, mechanical, photocopying, recording or otherwise,
+without the prior written permission of FOXIPSO DIGITAL INSTRUMENTS, Inc.\\[1em]
+YIP-BOI, WILLIAMS TUBE, and the Foxipso logo are trademarks of\\
+Foxipso Digital Instruments, Inc.\\[1em]
+Printed in VRChat.\\[0.5em]
+First Edition --- March 2026\\
+Part No. FDI-YB-001-EN
+}
+\end{center}
+\vspace*{\fill}
+
+% ============================================================================
+% TITLE PAGE
+% ============================================================================
+\newpage
+\thispagestyle{empty}
+\vspace*{0.5in}
+\begin{center}
+
+{\Huge\bfseries\ttfamily\color{mantitle}
+YIP-BOI OS}
+
+\vspace{0.3em}
+{\Large\bfseries\ttfamily\color{mantitle}
+OPERATOR'S MANUAL}
+
+\vspace{0.6em}
+\textcolor{rulecolor}{\rule{0.7\textwidth}{1.5pt}}
+
+\vspace{0.6em}
+{\normalsize\ttfamily
+Williams Tube Personal Data Assistant\\
+Wrist-Mounted CRT Terminal --- Model YB-1}
+
+\vspace{0.6em}
+
+% Title page image: replace assets/title photo.jpg for a real photo.
+% Falls back to ASCII art screenbox if file is missing.
+\newif\iftitlephoto
+\IfFileExists{assets/title photo.jpg}{\titlephototrue}{\titlephotofalse}
+\iftitlephoto
+  \includegraphics[width=0.55\textwidth]{title photo.jpg}%
+  \par\vspace{0.4em}%
+\else
+\begin{screenbox}
+\begin{verbatim}
+  +---------- YIP-BOI OS ----------+
+  | STATS   NET  TRACK  SPVR  CONF|
+  |                                |
+  | VRCX  HEART   MAP   DBG  -----|
+  |                                |
+  | -----  ----- -----  ----- ----|
+  |                                |
+  +/------------------ --:--:----=+
+\end{verbatim}
+\end{screenbox}
+\fi
+
+\vspace{0.8em}
+{\small\ttfamily
+For use with the YIP-BOI Desktop Companion Application\\[0.3em]
+Revision 1.0}
+
+\vspace{0.6em}
+
+{\footnotesize\ttfamily
+FOXIPSO DIGITAL INSTRUMENTS\\
+A Division of Imaginary Electronics, Inc.}
+
+\end{center}
+\vfill
+
+% ============================================================================
+% TABLE OF CONTENTS
+% ============================================================================
+\newpage
+\thispagestyle{fancy}
+
+\begin{center}
+{\Large\bfseries\ttfamily\color{mantitle} TABLE OF CONTENTS}
+\end{center}
+\vspace{0.5em}
+
+\renewcommand{\contentsname}{}
+\setcounter{tocdepth}{2}
+{\small
+\makeatletter
+\@starttoc{toc}
+\makeatother
+}
+
+% ============================================================================
+% CHAPTER 1: SETUP
+% ============================================================================
+\newpage
+\section{SETUP}
+\label{sec:setup}
+
+\subsection{Unpacking Your Yip-Boi}
+
+Carefully remove your Yip-Boi PDA from its anti-static packaging. Before discarding any packing material, check that all of the following items are present:
+
+\begin{enumerate}[leftmargin=2em]
+  \item One (1) Yip-Boi PDA unit (Model YB-1) with integrated wrist strap
+  \item One (1) Desktop Companion Software disk (3.5'' HD floppy, 1.44 MB)
+  \item One (1) Character ROM disk (3.5'' HD floppy, labeled ``YB-CHARROM Rev.A'')
+  \item One (1) OSC interface cable (USB-to-Ether, 6 ft.)
+  \item One (1) CR2032 NVRAM backup battery (pre-installed)
+  \item This manual
+  \item Warranty registration card
+\end{enumerate}
+
+If any of the above items are missing, contact your authorized Foxipso dealer immediately for a replacement. Do \textit{not} attempt to operate the unit without the Character ROM disk installed.
+
+\manualfig[0.7\textwidth]{unboxing.jpg}{Figure 1. Contents of the Yip-Boi PDA package.}
+
+\subsection{Initial Charging}
+
+Your Yip-Boi's internal Williams Tube CRT requires a brief warm-up period before first use. Connect the OSC interface cable to your desktop computer's USB port. The unit will draw power during normal operation --- no separate power adapter is required.
+
+\begin{notebox}
+The phosphor coating on a new Williams Tube CRT may take 2--3 boot cycles to reach optimal brightness. This is normal. If the display appears dim on first power-up, simply restart the companion software.
+\end{notebox}
+
+\subsection{Installing the Character ROM}
+
+The Character ROM is supplied on a standard 3.5'' high-density floppy disk. This disk contains the 256-glyph font atlas that defines every character, symbol, and icon the Yip-Boi can display.
+
+\textbf{To install or upgrade the Character ROM:}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Ensure the Yip-Boi is powered off (companion software not running)
+  \item Locate the ROM slot on the underside of the PDA housing
+  \item Insert the ``YB-CHARROM'' disk, label side up, until it clicks
+  \item Launch the companion software --- the ROM will be loaded automatically
+  \item The boot sequence will display ``ROM OK'' if the disk was read successfully
+\end{enumerate}
+
+\begin{warnbox}[CAUTION]
+Never remove the Character ROM disk while the companion software is running. This will cause display corruption and may result in undefined glyph behavior. The technical term for this is ``a bad time.''
+\end{warnbox}
+
+The Character ROM contains four regions of glyphs (see Section~\ref{sec:charset} for the complete map). Upgraded ROM disks with additional icon sets may be available from your Foxipso dealer in the future.
+
+\subsection{Connecting to VRChat}
+
+The Yip-Boi communicates with VRChat using the \textbf{OSC} (Open Sound Control) protocol over a standard UDP connection. Two ports are used:
+
+\begin{center}
+\begin{tabular}{lll}
+  \toprule
+  \textbf{Port} & \textbf{Direction} & \textbf{Purpose} \\
+  \midrule
+  9000 & Companion $\rightarrow$ VRChat & Display writes \\
+  9001 & VRChat $\rightarrow$ Companion & Input events \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Setup procedure:}
+
+\begin{enumerate}[leftmargin=2em]
+  \item Enable OSC in VRChat: Action Menu $\rightarrow$ Options $\rightarrow$ OSC $\rightarrow$ Enabled
+  \item Upload your avatar with the Yip-Boi prefab installed
+  \item Launch the Desktop Companion application on your PC
+  \item The PDA display will begin rendering within a few seconds
+  \item Confirm connection by checking for the spinning cursor (see Section~\ref{sec:spinner})
+\end{enumerate}
+
+\subsection{The Boot Sequence}
+
+When the companion software starts, the Yip-Boi performs a boot sequence. A progress bar fills across the screen as the system initializes. The speed of the boot animation is configurable (see Section~\ref{sec:conf}):
+
+\begin{screenbox}
+\begin{verbatim}
+  +---------- YIP-BOI OS ----------+
+  |                                |
+  |          LOADING . . .         |
+  |                                |
+  |  ||||||||||||||||.............. |
+  |                                |
+  |                                |
+  +--------------------------------+
+\end{verbatim}
+\end{screenbox}
+
+Upon completion, the Home screen will appear. You are now ready to operate your Yip-Boi.
+
+\manualfig[0.7\textwidth]{boot sequence.jpg}{Figure 3. The Yip-Boi boot sequence in progress.}
+
+% ============================================================================
+% CHAPTER 2: OPERATION
+% ============================================================================
+\newpage
+\section{OPERATION}
+\label{sec:operation}
+
+\subsection{Physical Controls}
+
+The Yip-Boi PDA has two types of input: \textbf{physical buttons} on the device housing, and \textbf{touchscreen contacts} on the display surface.
+
+\begin{warnbox}
+All input requires the \textbf{Point gesture} (index finger extended, VRChat gesture index 2). This is a safety interlock --- it prevents accidental activation during normal hand movement.
+\end{warnbox}
+
+Five physical controls are mounted on the device:
+
+\begin{screenbox}[title={\color{crtgreen}BUTTON LAYOUT}]
+\begin{verbatim}
+    Left side:              Right side:
+
+      [TL] Back               [TR] Context
+      [ML] Page Up
+      [BL] Page Down        [JOYSTICK] Toggle
+\end{verbatim}
+\end{screenbox}
+
+\begin{description}[style=nextline, leftmargin=1em, font=\bfseries\ttfamily]
+  \item[TL --- Back / Home]
+    Your primary navigation control. Press to go \textbf{back} one screen. Always works, on every screen, no exceptions. Pressing TL from the Home screen does nothing (you're already home).
+
+  \item[ML --- Page Up]
+    Scrolls or pages up on screens with multiple pages. An \textbf{up arrow} ($\uparrow$) on the left border indicates when this is available.
+
+  \item[BL --- Page Down]
+    Scrolls or pages down. A \textbf{down arrow} ($\downarrow$) on the left border indicates availability.
+
+  \item[TR --- Context Action]
+    Performs a screen-specific action. Not all screens use this button.
+
+  \item[Joystick]
+    A simple push-to-toggle button. No directional input.
+\end{description}
+
+\manualfig[0.7\textwidth]{button layout.jpg}{Figure 4. Physical button locations on the Yip-Boi PDA.}
+
+\subsection{Touchscreen}
+
+The display surface is divided into a \textbf{5$\times$3 grid} of touch zones (15 total). Which zones are active depends on the current screen.
+
+\begin{screenbox}[title={\color{crtgreen}TOUCH GRID}]
+\begin{verbatim}
+ +------+------+------+------+------+
+ | (1,1)| (2,1)| (3,1)| (4,1)| (5,1)|  Row 1
+ +------+------+------+------+------+
+ | (1,2)| (2,2)| (3,2)| (4,2)| (5,2)|  Row 2
+ +------+------+------+------+------+
+ | (1,3)| (2,3)| (3,3)| (4,3)| (5,3)|  Row 3
+ +------+------+------+------+------+
+   Col 1  Col 2  Col 3  Col 4  Col 5
+\end{verbatim}
+\end{screenbox}
+
+All inputs are debounced with a \textbf{300ms window} (configurable). This prevents double-taps, which matters when your index finger is competing with VR physics for positional accuracy.
+
+\manualfig[0.7\textwidth]{touchscreen closeup.jpg}{Figure 5. Touchscreen contact grid on the display surface.}
+
+% ============================================================================
+% CHAPTER 3: UNDERSTANDING THE DISPLAY
+% ============================================================================
+\newpage
+\section{UNDERSTANDING THE DISPLAY}
+\label{sec:display}
+
+YIP-BOI OS uses consistent visual conventions across every screen. Learn these once and you'll always know what's happening.
+
+\subsection{Screen Layout}
+
+Every screen follows the same structure:
+
+\begin{screenbox}[title={\color{crtgreen}SCREEN ANATOMY}]
+\begin{verbatim}
+ +---------- SCREEN TITLE ---------+  <- Row 0: title bar
+ |                                  |
+ |        Content area              |  <- Rows 1-6: content
+ |       (screen-specific)          |
+ |                                  |
+ |                                  |
+ |                                  |
+ +|----------------- HH:MM:SS-----+  <- Row 7: status bar
+  ^                   ^
+  spinner             clock
+\end{verbatim}
+\end{screenbox}
+
+The display is a 40-column by 8-row character grid. Columns 0 and 39 are reserved for the border. Row 0 is the title bar. Row 7 is the status bar. That leaves rows 1--6 (228 cells) for content.
+
+\subsection{The Spinnyboi}
+\label{sec:spinner}
+
+Bottom-left corner, row 7, column 1. The \textbf{spinner cursor} (a.k.a. ``the spinnyboi'') cycles through four characters: \texttt{| / - \textbackslash}
+
+This is the system's heartbeat. If it's spinning, the desktop companion is connected and actively driving the display. If it stops, the connection has been lost. Restart the companion software.
+
+\manualfig[0.4\textwidth]{spinner closeup.jpg}{Figure 6. The spinner cursor (``spinnyboi'') in the status bar.}
+
+\subsection{The ``C'' Clearing Flag}
+\label{sec:clearing}
+
+On screens with graphs (NET, HEART), the spinner may be temporarily replaced by a \textbf{``C''} character. This means the display is busy \textbf{clearing old graph data} --- for example, after switching network interfaces.
+
+When ``C'' disappears and the spinner resumes, clearing is complete and fresh data is being drawn. Think of it as the CRT's way of saying ``one moment, please.''
+
+\manualfig[0.4\textwidth]{C glyph closeup.jpg}{Figure 6a. The ``C'' clearing flag replacing the spinner.}
+
+\subsection{Inverted Text = Touchable}
+\label{sec:inverted}
+
+\begin{warnbox}
+This is the most important rule in YIP-BOI OS: \textbf{if text appears in inverted video (light background, dark characters), you can touch it.} Inverted text always means ``this is a button.''
+\end{warnbox}
+
+Normal text: green on black. Inverted text: black on green. The convention is universal --- Home screen tiles, Config settings, StayPutVR body parts, network interface names. If it's inverted, it responds to touch.
+
+When you press an inverted element, it briefly \textbf{flashes to normal} (un-inverts) as visual feedback confirming your input.
+
+\manualfig[0.5\textwidth]{inverted text closeup.jpg}{Figure 7. Inverted text (touchable) vs. normal text on the CRT.}
+
+\subsection{The Clock}
+
+The bottom-right corner displays a \textbf{24-hour clock} (\texttt{HH:MM:SS}). It updates once per second and is always visible on every screen.
+
+\subsection{Page Indicators}
+
+Screens with multiple pages display arrow glyphs on the left border:
+
+\begin{itemize}[leftmargin=2em, nosep]
+  \item $\uparrow$ on the left border = \key{ML} will page up
+  \item $\downarrow$ on the left border = \key{BL} will page down
+  \item Page number (e.g., ``1/2'') appears on the status bar
+\end{itemize}
+
+\subsection{Progress Bars}
+
+Several screens use block-character progress bars. Filled portions use solid blocks (\texttt{\#}), empty portions use light shade characters. Bars are \textbf{self-healing} --- periodic refresh re-stamps the background and redraws only the filled portion, so shrinking values are automatically corrected.
+
+% ============================================================================
+% CHAPTER 4: HOME SCREEN
+% ============================================================================
+\newpage
+\section{HOME SCREEN}
+\label{sec:home}
+
+The Home screen is your command center. It displays a grid of application tiles corresponding to the touchscreen zones. Tap a tile to launch that module.
+
+\begin{screenbox}[title={\color{crtgreen}HOME SCREEN}]
+\begin{verbatim}
+  +---------- YIP-BOI OS ----------+
+  | STATS   NET  TRACK  SPVR  CONF|
+  |                                |
+  | VRCX  HEART   MAP   DBG  -----|
+  |                                |
+  | -----  ----- -----  ----- ----|
+  |                                |
+  +/------------------ 14:32:07--=+
+\end{verbatim}
+\end{screenbox}
+
+\subsection{Tile Grid}
+
+\begin{center}
+{\small
+\begin{tabular}{c|ccccc}
+  \toprule
+  & \textbf{Col 1} & \textbf{Col 2} & \textbf{Col 3} & \textbf{Col 4} & \textbf{Col 5} \\
+  \midrule
+  \textbf{Row 1} & STATS & NET & TRACK & SPVR & CONF \\
+  \textbf{Row 2} & VRCX & HEART & MAP & DBG & ----- \\
+  \textbf{Row 3} & \textit{(reserved)} & \textit{(reserved)} & \textit{(reserved)} & \textit{(reserved)} & \textit{(reserved)} \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+Active tiles are displayed in \textbf{inverted text} (touchable). Tiles marked ``-----'' are reserved for future modules and do not respond to input. Row 3 is entirely reserved for expansion.
+
+\subsection{Navigation}
+
+Tapping an active tile:
+\begin{enumerate}[leftmargin=2em, nosep]
+  \item The tile flashes (un-inverts) confirming your touch
+  \item After $\sim$300ms, the module screen loads
+  \item Display clears, stamps the macro background, renders dynamic content
+\end{enumerate}
+
+From any module, press \key{TL} to go back. Press it repeatedly to return to Home.
+
+\manualfig[0.7\textwidth]{home screen.jpg}{Figure 8. The Home screen with active module tiles.}
+
+\subsection{How Screen Transitions Work}
+
+When you navigate to a new screen, the system performs three steps:
+
+\begin{enumerate}[leftmargin=2em, nosep]
+  \item \textbf{Clear} --- The CRT is wiped ($\sim$300ms)
+  \item \textbf{Macro Stamp} --- A pre-rendered full-screen image appears in one write cycle ($\sim$70ms). This is why borders, labels, and layout appear nearly instantly.
+  \item \textbf{Dynamic Fill} --- Only changing values (numbers, bars, clock) are written character by character ($\sim$2--3s)
+\end{enumerate}
+
+To remote observers, the screen appears to change almost instantly thanks to the macro stamp. The dynamic values then ``fill in'' over the next few seconds.
+
+% ============================================================================
+% CHAPTER 5: MODULES
+% ============================================================================
+\newpage
+\section{MODULES}
+\label{sec:modules}
+
+The Yip-Boi's functionality is organized into \textbf{modules} --- self-contained application screens accessible from the Home screen. Each module occupies the full display when active.
+
+\subsection{STATS --- System Monitor}
+\label{sec:stats}
+
+Displays real-time system metrics from your PC.
+
+\begin{screenbox}[title={\color{crtgreen}SYSTEM STATUS}]
+\begin{verbatim}
+  +-------- SYSTEM STATUS ---------+
+  |CPU  47%  ||||||||......... 52 C|
+  |MEM  51%  ||||||||||.......     |
+  |GPU  34%  ||||||........... 61 C|
+  |NET  ^2.1   v14.7     MB/s     |
+  |DISK 62%  ||||||||||||.....     |
+  |UP   3d 14h 22m                 |
+  +/------------------ 12:34:56--=+
+\end{verbatim}
+\end{screenbox}
+
+\textbf{Metrics displayed:}
+\begin{description}[style=nextline, leftmargin=1em, font=\ttfamily\bfseries, nosep]
+  \item[CPU] Usage percentage, bar graph, temperature in ${}^\circ$C
+  \item[MEM] Memory usage percentage with bar graph
+  \item[GPU] GPU usage percentage, bar graph, temperature in ${}^\circ$C
+  \item[NET] Upload ($\uparrow$) and download ($\downarrow$) speed in MB/s
+  \item[DISK] Disk usage percentage with bar graph
+  \item[UP] System uptime (days, hours, minutes)
+\end{description}
+
+The Stats module refreshes automatically. No touch interaction required --- just glance at your wrist.
+
+\manualfig[0.7\textwidth]{stats screen.jpg}{Figure 9. The STATS module displaying system metrics.}
+
+\subsection{NET --- Network Monitor}
+\label{sec:net}
+
+Displays a real-time oscilloscope-style sweep graph of network throughput.
+
+\begin{screenbox}[title={\color{crtgreen}NETWORK}]
+\begin{verbatim}
+  +---------- NETWORK -------------+
+  |eth0                  ^1.2 v4.5 |
+  |    |                    |      |
+  |  |||  ||              |||      |
+  | |||| ||||            |||||     |
+  ||||||||||||  |||||||||||||||   |||
+  |Session: 1.2 GB  Total: 847 GB |
+  +/------------------ 12:34:56--=+
+\end{verbatim}
+\end{screenbox}
+
+The graph uses a \textbf{circular buffer with a sweep cursor}. New data writes at the cursor position, and a two-column clear gap moves ahead of it, creating the classic oscilloscope sweep effect. Each column uses half-block characters for sub-row precision (10 vertical levels across 5 graph rows).
+
+\textbf{The interface name} (e.g., ``eth0'') is displayed in \textbf{inverted text}. Tap it to cycle through available network interfaces. When switching interfaces, the ``C'' flag appears in the status bar while the old graph clears (see Section~\ref{sec:clearing}).
+
+\manualfig[0.7\textwidth]{net screen.jpg}{Figure 10. The NET module with oscilloscope sweep graph.}
+
+\subsubsection{Graph Scale Indicator}
+
+The Y-axis range is shown by a \textbf{scale indicator} at the bottom-left of the graph area. The bottom of the graph always represents \textbf{0~B/s}. The top initially represents \textbf{2~kB/s}.
+
+The scale indicator starts at ``\texttt{0}'' and increments through the sequence \texttt{0--9, A--Z} each time the graph auto-scales to accommodate higher throughput. When a scale change occurs:
+
+\begin{enumerate}[leftmargin=2em, nosep]
+  \item The indicator character increments (e.g., ``0'' $\rightarrow$ ``1'', ``9'' $\rightarrow$ ``A'')
+  \item A \textbf{scale-change marker} is drawn at the bottom of the graph at the column where the new scale takes effect
+\end{enumerate}
+
+\begin{screenbox}[title={\color{crtgreen}SCALE INDICATOR}]
+\begin{verbatim}
+  |              ||| ||
+  |    ||       |||||||
+  |  |||||     ||||||||||||
+  | |||||||||||||||||||||||||||
+  2          ^--- new scale starts here
+\end{verbatim}
+\end{screenbox}
+
+Columns before a scale marker were rendered at the previous (lower) scale. Columns after the marker use the new, expanded scale. This lets you visually identify when and where throughput spikes caused the graph to rescale.
+
+\manualfig[0.5\textwidth]{scale indicator closeup.jpg}{Figure 10a. Scale indicator and change marker on the NET graph.}
+
+When the interface is switched, the graph clears and the scale resets to its default.
+
+\subsection{HEART --- Heartbeat Monitor}
+\label{sec:heart}
+
+Displays a BPM trend graph using the same oscilloscope sweep rendering as the NET module.
+
+\begin{screenbox}[title={\color{crtgreen}HEARTBEAT}]
+\begin{verbatim}
+  +---------- HEARTBEAT -----------+
+  |BPM: 72   HI: 98  LO: 61 AVG75|
+  |130                             |
+  |    ||                    ||    |
+  |  ||||||              |||||||   |
+  | |||||||||  ||||||||||||||||||  |
+  | 60                             |
+  +/------------------ 12:34:56--=+
+\end{verbatim}
+\end{screenbox}
+
+The header row shows current BPM, session high, low, and average. The Y-axis is labeled with a fixed range (60--130 BPM by default).
+
+\manualfig[0.7\textwidth]{heart screen.jpg}{Figure 11. The HEART module showing BPM trend graph.}
+
+\begin{notebox}
+The Yip-Boi can receive BPM data from a Bluetooth heart rate monitor or other external source. When no data source is connected, simulated data is displayed for demonstration.
+\end{notebox}
+
+\subsection{SPVR --- StayPutVR}
+\label{sec:stay}
+
+Touch-based control of the StayPutVR body part locking system.
+
+\begin{screenbox}[title={\color{crtgreen}STAYPUTVR}]
+\begin{verbatim}
+  +---------- STAYPUTVR -----------+
+  |   LW       RW      HEAD       |
+  |                                |
+  |   LA       RA     PLAYSP      |
+  |                                |
+  |                                |
+  |   DRIFT: 0.02m      SNAP: ON  |
+  +/------------------ 12:34:56--=+
+\end{verbatim}
+\end{screenbox}
+
+Each body part label (LW, RW, HEAD, LA, RA, PLAYSP) is displayed in \textbf{inverted text}, indicating it is touchable. Tap a label to toggle its lock state. Six of the fifteen touch zones are active, corresponding to the six body parts.
+
+\manualfig[0.7\textwidth]{stay screen.jpg}{Figure 12. The SPVR module with body part toggles.}
+
+\subsection{CONF --- Configuration}
+\label{sec:conf}
+
+System settings, spanning multiple pages. Use \key{ML} and \key{BL} to navigate between pages.
+
+\begin{screenbox}[title={\color{crtgreen}SETTINGS}]
+\begin{verbatim}
+  +--------- SETTINGS 1/2 --------+
+  |  BOOT       WRITE      SETTL  |
+  |  FAST       NORM       NORM   |
+  |                                |
+  |  LOG        DBNCE      NVRAM  |
+  |  INFO       NORM       CLR   |
+  |                                |
+  +/1/2--------------- 12:34:56--=+
+\end{verbatim}
+\end{screenbox}
+
+Setting labels are \textbf{inverted} (touchable). Tap to cycle through values.
+
+\textbf{Page 1:}
+\begin{description}[style=nextline, leftmargin=1em, font=\ttfamily\bfseries, nosep]
+  \item[BOOT] Boot animation speed: OFF / FAST / NORM / SLOW
+  \item[WRITE] Per-character write delay: FAST / NORM / SLOW
+  \item[SETTL] Mode-switch settle delay: FAST / NORM / SLOW
+  \item[LOG] Log verbosity level: DBG / INFO / WARN / ERR
+  \item[DBNCE] Input debounce window: SHRT / NORM / LONG
+  \item[NVRAM] Clear all saved state (tap to reset)
+\end{description}
+
+\textbf{Page 2:}
+\begin{description}[style=nextline, leftmargin=1em, font=\ttfamily\bfseries, nosep]
+  \item[REFR] Screen refresh interval: 1S / 5S / 10S / 30S
+  \item[REBOOT] Restart the companion application
+\end{description}
+
+Settings persist to \texttt{config.ini} and survive restarts.
+
+\manualfig[0.7\textwidth]{conf screen.jpg}{Figure 13. The CONF module showing settings page 1.}
+
+\subsection{VRCX --- VRChat Extended}
+\label{sec:vrcx}
+
+Displays information from the VRCX desktop application, including social data and world information. Requires VRCX to be running on your desktop.
+
+\subsection{DBG --- Calibration}
+\label{sec:dbg}
+
+Displays a calibration ruler and touch zone markers for verifying the touchscreen grid alignment. Use this during initial setup to confirm that contact receivers are correctly positioned.
+
+% ============================================================================
+% CHAPTER 6: THE CHARACTER ROM
+% ============================================================================
+\newpage
+\section{THE CHARACTER ROM}
+\label{sec:charset}
+
+The Yip-Boi's display is driven by a \textbf{256-glyph Character ROM}, supplied on the included 3.5'' floppy disk. Every character, icon, box-drawing element, and inverted variant is stored in a single 16$\times$16 atlas grid.
+
+\manualfig[0.6\textwidth]{character rom atlas.jpg}{Figure 14. The complete 256-glyph Character ROM atlas.}
+
+\begin{center}
+{\small
+\begin{tabular}{ccl}
+  \toprule
+  \textbf{Index Range} & \textbf{Count} & \textbf{Contents} \\
+  \midrule
+  0--31 & 32 & Box-drawing, block elements, symbols \\
+  32--127 & 96 & Standard printable ASCII characters \\
+  128--159 & 32 & Custom PDA icons \\
+  160--255 & 96 & Inverted ASCII (mirrors 32--127) \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{Box-Drawing Characters (0--11)}
+
+Used to construct screen borders, frames, and table layouts:
+
+\begin{screenbox}
+\begin{verbatim}
+  0: (empty)     3: + (TL)     7: |-- (L-tee)    11: + (cross)
+  1: --- (horiz) 4: + (TR)     8: --| (R-tee)
+  2:  |  (vert)  5: + (BL)     9: -+- (T-tee)
+                 6: + (BR)    10: -+- (B-tee)
+\end{verbatim}
+\end{screenbox}
+
+\subsection{Block Elements (12--19)}
+
+For progress bars, graphs, and visual fills:
+
+\begin{screenbox}
+\begin{verbatim}
+ 12: solid block     15: left half     18: med shade  (50%)
+ 13: upper half      16: right half    19: heavy shade (75%)
+ 14: lower half      17: light shade (25%)
+\end{verbatim}
+\end{screenbox}
+
+\subsection{Symbols (20--29)}
+
+\begin{screenbox}
+\begin{verbatim}
+ 20: bullet   22: note    24: up     26: right   28: gear
+ 21: heart    23: dnote   25: down   27: left    29: home
+\end{verbatim}
+\end{screenbox}
+
+\subsection{Custom PDA Icons (128--143)}
+
+\begin{screenbox}
+\begin{verbatim}
+ 128: signal      132: batt empty   136: play     140: wifi
+ 129: batt full   133: lock         137: pause    141: check
+ 130: batt half   134: unlock       138: skip fwd 142: X mark
+ 131: batt low    135: settings     139: skip bak 143: tracker
+\end{verbatim}
+\end{screenbox}
+
+\subsection{Inverted Glyphs (160--255)}
+
+To display any printable ASCII character in inverted video, add 128 to its code. For example: normal ``A'' = index 65, inverted ``A'' = 65 + 128 = 193. The ROM contains pre-rendered inverted variants.
+
+\subsection{Upgrading the Character ROM}
+
+Future ROM revisions may include additional icon sets, alternative fonts, or expanded symbol libraries. To upgrade:
+
+\begin{enumerate}[leftmargin=2em, nosep]
+  \item Obtain the new ROM disk from your Foxipso dealer
+  \item Shut down the companion software
+  \item Remove the current ROM disk from the slot
+  \item Insert the new disk, label side up
+  \item Restart the companion software
+  \item Verify ``ROM OK'' appears during boot
+\end{enumerate}
+
+ROM disks are backward-compatible. Your Yip-Boi will always be able to read older ROM revisions. However, modules designed for newer ROM features may display placeholder glyphs if used with an older ROM.
+
+\manualfig[0.6\textwidth]{rom disk.jpg}{Figure 2. The YB-CHARROM Rev.A floppy disk.}
+
+% ============================================================================
+% CHAPTER 7: TECHNICAL SPECIFICATIONS
+% ============================================================================
+\newpage
+\section{TECHNICAL SPECIFICATIONS}
+\label{sec:technical}
+
+\subsection{Display}
+
+\begin{center}
+{\small
+\begin{tabular}{ll}
+  \toprule
+  \textbf{Property} & \textbf{Value} \\
+  \midrule
+  Render Texture & 512$\times$512 ARGB32, point-filtered \\
+  Visible Screen Area & 512$\times$264 pixels \\
+  Text Grid & 40 columns $\times$ 8 rows \\
+  Glyph Size & $\sim$12.8$\times$33 pixels \\
+  Color Mode & Monochrome (green phosphor) \\
+  Character ROM & 256 glyphs (16$\times$16 atlas) \\
+  Write Speed & $\sim$70ms per glyph \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{Synced Parameters (VRChat Network)}
+
+\begin{center}
+{\small
+\begin{tabular}{llll}
+  \toprule
+  \textbf{Parameter} & \textbf{Type} & \textbf{Bits} & \textbf{Purpose} \\
+  \midrule
+  WT\_CursorX & Float & 8 & Horizontal position \\
+  WT\_CursorY & Float & 8 & Vertical position \\
+  WT\_CharLo & Int & 8 & Glyph index (0--255) \\
+  WT\_ScaleA & Bool & 1 & Mode bit A \\
+  WT\_ScaleB & Bool & 1 & Mode bit B \\
+  \midrule
+  \textbf{Total} & & \textbf{26} & Under 32-bit VRC budget \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{Write Modes}
+
+\begin{center}
+{\small
+\begin{tabular}{cclll}
+  \toprule
+  \textbf{ScaleA} & \textbf{ScaleB} & \textbf{Mode} & \textbf{Scale} & \textbf{Atlas} \\
+  \midrule
+  false & false & TEXT & 1/40 $\times$ 1/8 & Text ROM \\
+  true & false & MACRO & 1.0 $\times$ 1.0 & Macro atlas \\
+  any & true & CLEAR & 1.0 $\times$ 1.0 & (transparent fill) \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{Macro Glyph Atlas}
+
+Pre-rendered screen backgrounds stored in a separate 4096$\times$4096 atlas (8$\times$8 grid = 64 slots). Stamping one macro glyph ($\sim$70ms) replaces 200+ individual character writes.
+
+\begin{center}
+{\small
+\begin{tabular}{cll}
+  \toprule
+  \textbf{Slot} & \textbf{Screen} & \textbf{Baked Content} \\
+  \midrule
+  0 & HOME & Border, title, tile labels \\
+  1 & STATS & Border, labels, empty bars \\
+  2 & STAY & Border, body part layout \\
+  3 & NET & Border, title \\
+  4 & HEART & Border, BPM labels, axes \\
+  5 & BOOT & Boot progress layout \\
+  6--7 & CONF & Settings pages 1 \& 2 \\
+  8--63 & \textit{reserved} & Future modules \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{Timing Reference}
+
+\begin{center}
+{\small
+\begin{tabular}{lll}
+  \toprule
+  \textbf{Operation} & \textbf{Duration} & \textbf{Notes} \\
+  \midrule
+  Character write & $\sim$70ms & WRITE\_DELAY \\
+  Mode switch & $\sim$40ms & SETTLE\_DELAY \\
+  Screen clear & $\sim$300ms & Transparent fill \\
+  Macro stamp & $\sim$110ms & Settle + write \\
+  Full screen (brute) & $\sim$22s & 320 chars (avoid) \\
+  Screen transition & $\sim$2--4s & Macro + dynamic \\
+  Toggle response & $\sim$220ms & 2 char rewrites \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+% ============================================================================
+% CHAPTER 8: COMPANION SOFTWARE
+% ============================================================================
+\newpage
+\section{COMPANION SOFTWARE}
+\label{sec:companion}
+
+The Desktop Companion is a C++ application that runs on your PC and drives the Yip-Boi's display over OSC. It must be running whenever you want the PDA to function.
+
+\subsection{Installation}
+
+Insert the Desktop Companion Software disk (3.5'' floppy) into your PC's disk drive. If your PC does not have a 3.5'' drive, the software is also available for download from your Foxipso dealer's BBS.
+
+\subsection{Command-Line Options}
+
+\begin{center}
+{\small
+\begin{tabular}{ll}
+  \toprule
+  \textbf{Option} & \textbf{Description} \\
+  \midrule
+  \texttt{--ip} & VRChat host IP (default: 127.0.0.1) \\
+  \texttt{--send-port} & OSC send port (default: 9000) \\
+  \texttt{--listen-port} & OSC listen port (default: 9001) \\
+  \texttt{--write-delay} & Per-character delay in seconds \\
+  \texttt{--settle-delay} & Mode switch delay in seconds \\
+  \texttt{--refresh} & Auto-refresh interval in seconds \\
+  \texttt{--calibrate} & Launch in calibration mode \\
+  \bottomrule
+\end{tabular}
+}
+\end{center}
+
+\subsection{System Monitoring}
+
+The companion software reads system metrics directly from your operating system:
+
+\begin{description}[style=nextline, leftmargin=1em, font=\ttfamily\bfseries, nosep]
+  \item[Linux] \texttt{/proc/stat}, \texttt{/proc/meminfo}, \texttt{/proc/net/dev}, NVML
+  \item[Windows] WMI, PDH, NVAPI
+\end{description}
+
+No additional monitoring software is required.
+
+% ============================================================================
+% CHAPTER 9: TROUBLESHOOTING
+% ============================================================================
+\section{TROUBLESHOOTING}
+\label{sec:troubleshooting}
+
+\subsection{The spinner isn't spinning}
+
+The companion software is not running or has lost connection. Restart the companion app and verify OSC is enabled in VRChat.
+
+\subsection{Characters appear garbled}
+
+Write delay may be too fast. Try: \texttt{yip\_os --write-delay 0.09}
+
+\subsection{Touch inputs don't register}
+
+\begin{itemize}[leftmargin=2em, nosep]
+  \item Verify you're using the \textbf{Point gesture}
+  \item Check that OSC is enabled in VRChat
+  \item Confirm the companion app is listening on port 9001
+  \item Use the DBG screen to verify touch zone alignment
+\end{itemize}
+
+\subsection{The display is blank}
+
+\begin{itemize}[leftmargin=2em, nosep]
+  \item Verify the avatar prefab is correctly configured
+  \item Check the render texture assignment in Unity
+  \item Ensure CRT material texture tiling Y = 2
+  \item Is the Character ROM disk inserted?
+\end{itemize}
+
+\subsection{``ROM ERR'' at boot}
+
+The Character ROM disk may be damaged, improperly seated, or from an incompatible revision. Remove the disk, check for dust or debris, reinsert firmly, and restart.
+
+% ============================================================================
+% APPENDICES
+% ============================================================================
+\newpage
+\appendix
+
+\section{QUICK REFERENCE CARD}
+\label{sec:quickref}
+
+\begin{screenbox}[title={\color{crtgreen}CONTROLS SUMMARY}]
+\begin{verbatim}
+ BUTTONS:                     DISPLAY:
+   [TL] Back / Home             Inverted text = touchable
+   [ML] Page Up                 Spinner = connection OK
+   [BL] Page Down               "C" = graph clearing
+   [TR] Context action          Clock = 24h, always on
+   [JOY] Toggle
+                              NAVIGATION:
+ TOUCHSCREEN:                   Home -> tap tile -> module
+   5 x 3 grid (15 zones)       [TL] goes back one screen
+   Point gesture required       [TL] x N returns to Home
+\end{verbatim}
+\end{screenbox}
+
+\section{GLOSSARY}
+\label{sec:glossary}
+
+\begin{description}[style=nextline, leftmargin=1em, font=\ttfamily\bfseries]
+  \item[Character ROM]
+    The 256-glyph font atlas supplied on 3.5'' floppy. Defines every displayable character and icon.
+
+  \item[CRT]
+    Cathode Ray Tube. The display technology being lovingly emulated.
+
+  \item[Glyph]
+    A single character or symbol from the Character ROM.
+
+  \item[Inverted Video]
+    Foreground and background colors swapped. Indicates a touchable element.
+
+  \item[Macro Glyph]
+    A pre-rendered full-screen image stamped in one write cycle. The secret to fast screen transitions.
+
+  \item[Module]
+    A self-contained application screen (STATS, NET, HEART, etc.).
+
+  \item[OSC]
+    Open Sound Control. UDP protocol linking the companion software to VRChat.
+
+  \item[Render Texture]
+    The persistent 512$\times$512 framebuffer. Glyphs accumulate like phosphor traces.
+
+  \item[Spinnyboi]
+    The rotating status cursor. Technical term. See Section~\ref{sec:spinner}.
+
+  \item[Williams Tube]
+    The rendering pipeline. Named after the Williams-Kilburn tube (1947), one of the first electronic memory devices.
+
+  \item[Write Head]
+    The shader quad that deposits individual glyphs onto the render texture.
+\end{description}
+
+\section{WARRANTY}
+\label{sec:warranty}
+
+Foxipso Digital Instruments warrants the Yip-Boi PDA (Model YB-1) against defects in materials and workmanship for a period of ninety (90) virtual days from the date of original purchase. This warranty does not cover:
+
+\begin{itemize}[leftmargin=2em, nosep]
+  \item Damage caused by improper installation of the Character ROM disk
+  \item Phosphor burn-in resulting from displaying the same screen for extended periods (this is not actually possible, but we're covering our bases)
+  \item Damage caused by exposure to water, fire, or the VRChat particle limit
+  \item Embarrassment resulting from other players reading your system stats
+  \item Existential dread upon realizing you strapped a fake computer to your fake arm
+\end{itemize}
+
+To obtain warranty service, contact your authorized Foxipso dealer with proof of purchase and a detailed description of the defect. Do \textit{not} attempt to service the unit yourself. There are no user-serviceable parts inside. We checked.
+
+\vfill
+\begin{center}
+\textcolor{rulecolor}{\rule{0.5\textwidth}{0.8pt}}\\[0.5em]
+{\footnotesize\ttfamily FOXIPSO DIGITAL INSTRUMENTS, INC.\\
+``If you can read this, you're too close to someone's wrist.''\\[0.3em]
+Part No. FDI-YB-001-EN Rev.A --- Printed in VRChat --- 2026}
+\end{center}
+
+\end{document}
