@@ -166,6 +166,8 @@ int main(int argc, char* argv[]) {
                 for (int i = 0; i < YipOS::PDAController::SPVR_DEVICE_COUNT; i++) {
                     if (address.find(YipOS::PDAController::SPVR_DEVICE_NAMES[i]) != std::string::npos) {
                         pda.SetSPVRStatus(i, status);
+                        YipOS::Logger::Info("SPVR status: " + std::string(YipOS::PDAController::SPVR_DEVICE_NAMES[i]) +
+                                           " = " + std::to_string(status));
                         break;
                     }
                 }

@@ -9,15 +9,13 @@ namespace YipOS {
 
 using namespace Glyphs;
 
-// Display labels: what the PDA shows
 const char* StayScreen::DISPLAY_LABELS[PART_ROWS][PART_ACTIVE_COLS] = {
     {"LW",    "RW",    "COLLAR"},
     {"LF",    "RF",    "ALL"},
 };
 
-// Map [row][col] → SPVR device index (PDAController::SPVR_DEVICE_NAMES)
 // 0=HMD, 1=ControllerLeft, 2=ControllerRight, 3=FootLeft, 4=FootRight, 5=Hip
-// -1 = ALL (global lock/unlock)
+// -1 = ALL
 const int StayScreen::SPVR_INDEX[PART_ROWS][PART_ACTIVE_COLS] = {
     {1, 2, 0},   // LW=ControllerLeft, RW=ControllerRight, COLLAR=HMD
     {3, 4, -1},  // LF=FootLeft, RF=FootRight, ALL=global
@@ -41,28 +39,35 @@ const std::unordered_map<std::string, StayScreen::PartMapping> StayScreen::CONTA
 StayScreen::StayScreen(PDAController& pda) : Screen(pda) {
     name = "STAY";
     macro_index = 2;
-    update_interval = 2;
+    update_interval = 1;
 
-    // Initialize cached status to -1 (unknown) so first Update draws everything
     for (int r = 0; r < PART_ROWS; r++)
         for (int c = 0; c < PART_ACTIVE_COLS; c++)
-            last_status_[r][c] = -1;
+            last_rendered_[r][c] = -999;
 }
 
 const char* StayScreen::StatusLabel(int status) const {
     switch (status) {
-        case 0:  return " OFF ";
         case 1:  return "FREE ";
         case 2:  return "LCKD ";
         case 3:  return "WARN ";
         case 4:  return "DSB! ";
         case 5:  return "OOB! ";
-        default: return "UNKN ";
+        default: return "FREE ";
     }
 }
 
-bool StayScreen::IsLocked(int spvr_index) const {
-    return pda_.GetSPVRStatus(spvr_index) >= 2;
+int StayScreen::GetStatus(int part_row, int part_col) const {
+    int idx = SPVR_INDEX[part_row][part_col];
+    if (idx < 0) return AnyLocked() ? 2 : 1;
+    return pda_.GetSPVRStatus(idx);
+}
+
+bool StayScreen::AnyLocked() const {
+    for (int d = 0; d < PDAController::SPVR_DEVICE_COUNT; d++) {
+        if (pda_.GetSPVRStatus(d) >= 2) return true;
+    }
+    return false;
 }
 
 void StayScreen::SendLock(int spvr_index, bool lock) {
@@ -88,20 +93,16 @@ void StayScreen::SendGlobalLock(bool lock) {
 void StayScreen::Render() {
     RenderFrame("STAYPUTVR");
 
-    // Row 2: separator
     display_.WriteGlyph(0, 2, G_L_TEE);
     for (int c = 1; c < COLS - 1; c++) display_.WriteGlyph(c, 2, G_HLINE);
     display_.WriteGlyph(COLS - 1, 2, G_R_TEE);
 
-    // Body parts
     RenderPartRow(0, 3);
     RenderPartRow(1, 5);
-
     RenderStatusBar();
 }
 
 void StayScreen::RenderDynamic() {
-    // Render all parts with current status
     for (int r = 0; r < PART_ROWS; r++)
         for (int c = 0; c < PART_ACTIVE_COLS; c++)
             RenderSinglePart(r, c);
@@ -115,34 +116,20 @@ void StayScreen::RenderPartRow(int part_row, int display_row) {
         if (!label) continue;
 
         int pos = TILE_POSITIONS[i];
-        int spvr_idx = SPVR_INDEX[part_row][i];
-
-        // For ALL, check if any device is locked
-        int status;
-        if (spvr_idx < 0) {
-            bool any_locked = false;
-            for (int d = 0; d < PDAController::SPVR_DEVICE_COUNT; d++) {
-                if (pda_.GetSPVRStatus(d) >= 2) { any_locked = true; break; }
-            }
-            status = any_locked ? 2 : 1;
-        } else {
-            status = pda_.GetSPVRStatus(spvr_idx);
-        }
+        int status = GetStatus(part_row, i);
         bool locked = (status >= 2);
 
-        // Lock/unlock glyph + label (inverted = touchable)
         display_.WriteGlyph(pos, display_row, locked ? G_LOCK : G_UNLOCK);
         char lbl[8];
         std::snprintf(lbl, sizeof(lbl), " %-5s", label);
         display_.WriteText(pos + 1, display_row, lbl, true);
 
-        // Status text
         const char* state_str = StatusLabel(status);
         char state_buf[9];
         std::snprintf(state_buf, sizeof(state_buf), "%-8.8s", state_str);
         display_.WriteText(pos, display_row + 1, state_buf, locked);
 
-        last_status_[part_row][i] = status;
+        last_rendered_[part_row][i] = status;
     }
 }
 
@@ -152,34 +139,20 @@ void StayScreen::RenderSinglePart(int part_row, int part_col, bool flash) {
 
     int display_row = (part_row == 0) ? 3 : 5;
     int pos = TILE_POSITIONS[part_col];
-    int spvr_idx = SPVR_INDEX[part_row][part_col];
-
-    int status;
-    if (spvr_idx < 0) {
-        bool any_locked = false;
-        for (int d = 0; d < PDAController::SPVR_DEVICE_COUNT; d++) {
-            if (pda_.GetSPVRStatus(d) >= 2) { any_locked = true; break; }
-        }
-        status = any_locked ? 2 : 1;
-    } else {
-        status = pda_.GetSPVRStatus(spvr_idx);
-    }
+    int status = GetStatus(part_row, part_col);
     bool locked = (status >= 2);
 
-    // Flash: momentarily show label un-inverted
     if (flash) {
         char lbl[8];
         std::snprintf(lbl, sizeof(lbl), " %-5s", label);
         display_.WriteText(pos + 1, display_row, lbl, false);
     }
 
-    // Lock glyph + inverted label
     display_.WriteGlyph(pos, display_row, locked ? G_LOCK : G_UNLOCK);
     char lbl[8];
     std::snprintf(lbl, sizeof(lbl), " %-5s", label);
     display_.WriteText(pos + 1, display_row, lbl, true);
 
-    // Clear state row then write new status
     for (int c = 0; c < 8; c++) {
         display_.WriteChar(pos + c, display_row + 1, 32);
     }
@@ -188,7 +161,7 @@ void StayScreen::RenderSinglePart(int part_row, int part_col, bool flash) {
     std::snprintf(state_buf, sizeof(state_buf), "%-8.8s", state_str);
     display_.WriteText(pos, display_row + 1, state_buf, locked);
 
-    last_status_[part_row][part_col] = status;
+    last_rendered_[part_row][part_col] = status;
 }
 
 bool StayScreen::OnInput(const std::string& key) {
@@ -202,40 +175,36 @@ bool StayScreen::OnInput(const std::string& key) {
     display_.CancelBuffered();
 
     if (spvr_idx < 0) {
-        // ALL: if any locked → unlock all, else lock all
-        bool any_locked = false;
+        // ALL: any locked → unlock all, else lock all
+        bool do_lock = !AnyLocked();
+        SendGlobalLock(do_lock);
+        // Update all device statuses immediately
         for (int d = 0; d < PDAController::SPVR_DEVICE_COUNT; d++) {
-            if (pda_.GetSPVRStatus(d) >= 2) { any_locked = true; break; }
+            pda_.SetSPVRStatus(d, do_lock ? 2 : 1);
         }
-        SendGlobalLock(!any_locked);
     } else {
-        // Toggle individual device
-        bool currently_locked = IsLocked(spvr_idx);
-        SendLock(spvr_idx, !currently_locked);
+        // Toggle: locked → unlock, unlocked → lock
+        bool locked = (pda_.GetSPVRStatus(spvr_idx) >= 2);
+        SendLock(spvr_idx, !locked);
+        // Update status immediately so display reflects the action
+        pda_.SetSPVRStatus(spvr_idx, locked ? 1 : 2);
     }
 
-    // Flash the button
     RenderSinglePart(ty, tx, true);
+    if (spvr_idx < 0) {
+        for (int r = 0; r < PART_ROWS; r++)
+            for (int c = 0; c < PART_ACTIVE_COLS; c++)
+                if (SPVR_INDEX[r][c] >= 0) RenderSinglePart(r, c);
+    }
     return true;
 }
 
 void StayScreen::Update() {
-    // Check if any status changed since last render, redraw only changed parts
     display_.BeginBuffered();
     for (int r = 0; r < PART_ROWS; r++) {
         for (int c = 0; c < PART_ACTIVE_COLS; c++) {
-            int spvr_idx = SPVR_INDEX[r][c];
-            int status;
-            if (spvr_idx < 0) {
-                bool any_locked = false;
-                for (int d = 0; d < PDAController::SPVR_DEVICE_COUNT; d++) {
-                    if (pda_.GetSPVRStatus(d) >= 2) { any_locked = true; break; }
-                }
-                status = any_locked ? 2 : 1;
-            } else {
-                status = pda_.GetSPVRStatus(spvr_idx);
-            }
-            if (status != last_status_[r][c]) {
+            int status = GetStatus(r, c);
+            if (status != last_rendered_[r][c]) {
                 RenderSinglePart(r, c);
             }
         }

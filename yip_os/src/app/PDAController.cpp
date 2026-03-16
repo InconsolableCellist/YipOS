@@ -28,6 +28,9 @@ PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Confi
     : display_(display), net_tracker_(net_tracker), config_(config),
       system_stats_(SystemStats::Create()),
       refresh_interval_(refresh_interval) {
+    // Default SPVR devices to unlocked (1) — matches in-game initial state
+    for (auto& s : spvr_status_) s.store(1);
+
     // Push home screen as root
     auto home = std::make_unique<HomeScreen>(*this);
     screen_stack_.push_back(std::move(home));
