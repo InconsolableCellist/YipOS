@@ -59,6 +59,13 @@ public:
     float GetSettleDelay() const { return settle_delay_; }
     void SetSettleDelay(float v) { settle_delay_ = v; }
 
+    // Write head state for UI display
+    float GetHWCursorX() const { return hw_cursor_x_; }
+    float GetHWCursorY() const { return hw_cursor_y_; }
+    int GetLastCharIdx() const { return last_char_idx_; }
+    Mode GetMode() const { return current_mode_; }
+    int GetTotalWrites() const { return total_writes_; }
+
 private:
     void SleepMs(float seconds);
     void SendParam(const std::string& name, float value);
@@ -75,6 +82,8 @@ private:
     float write_delay_;
     float settle_delay_;
     Mode current_mode_ = MODE_TEXT;
+    int last_char_idx_ = 0;
+    int total_writes_ = 0;
 
     // Buffered write queue: (col, row_float, char_idx)
     std::vector<std::tuple<int, float, int>> write_queue_;

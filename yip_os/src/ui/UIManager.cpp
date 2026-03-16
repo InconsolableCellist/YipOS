@@ -18,13 +18,9 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
-
 #include <cstdio>
 #include <chrono>
 #include <algorithm>
-#include <filesystem>
 
 namespace YipOS {
 
@@ -73,23 +69,12 @@ bool UIManager::Initialize(const std::string& title) {
     ImGui_ImplGlfw_InitForOpenGL(window_, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 
-    // Try to load macro atlas from assets path
-    if (!assets_path_.empty()) {
-        LoadMacroAtlas(assets_path_ + "/WilliamsTube_MacroAtlas.png");
-    }
-
     Logger::Info("UI initialized: " + title);
     return true;
 }
 
 void UIManager::Shutdown() {
     if (!window_) return;
-
-    if (macro_atlas_tex_) {
-        glDeleteTextures(1, &macro_atlas_tex_);
-        macro_atlas_tex_ = 0;
-        macro_atlas_loaded_ = false;
-    }
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -208,157 +193,176 @@ void UIManager::AddLogLine(const std::string& line) {
     log_lines_.push_back(line);
 }
 
-// --- Atlas Loading ---
-
-bool UIManager::LoadMacroAtlas(const std::string& path) {
-    int w, h, channels;
-    unsigned char* data = stbi_load(path.c_str(), &w, &h, &channels, 1);
-    if (!data) {
-        Logger::Warning("Could not load macro atlas: " + path);
-        return false;
-    }
-
-    GLuint tex;
-    glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, w, h, 0, GL_RED, GL_UNSIGNED_BYTE, data);
-
-    // Swizzle so single-channel reads as (R,R,R,R) — white foreground
-    GLint swizzle[] = {GL_RED, GL_RED, GL_RED, GL_RED};
-    glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
-
-    stbi_image_free(data);
-
-    macro_atlas_tex_ = tex;
-    macro_atlas_loaded_ = true;
-    Logger::Info("Macro atlas loaded: " + path + " (" + std::to_string(w) + "x" + std::to_string(h) + ")");
-    return true;
-}
-
 // --- Tab Implementations ---
 
 void UIManager::RenderStatusTab(PDAController& pda, OSCManager& osc) {
-    if (pda.IsBooting()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "BOOTING...");
-        return;
+    auto& display = pda.GetDisplay();
+
+    // --- Header ---
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "YIP-BOI OS v1.0");
+    ImGui::SameLine();
+    ImGui::TextDisabled("(C) Foxipso 2026");
+    ImGui::TextDisabled("Enable the PDA and Williams Tube in VRChat to see the output!");
+    ImGui::Text("OS: Up and running");
+    ImGui::Separator();
+
+    // --- Input Controls ---
+    ImVec2 nav_btn(60, 28);
+    ImVec2 touch_btn(40, 28);
+
+    // Row 1: HOME | touch row 1 | SEL
+    if (ImGui::Button("HOME", nav_btn)) pda.QueueInput("TL");
+    ImGui::SameLine(0, 8);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0, 8);
+    for (int c = 1; c <= 5; c++) {
+        char label[4];
+        std::snprintf(label, sizeof(label), "%d1", c);
+        if (ImGui::Button(label, touch_btn)) pda.QueueInput(label);
+        if (c < 5) ImGui::SameLine(0, 4);
+    }
+    ImGui::SameLine(0, 8);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0, 8);
+    if (ImGui::Button("SEL", nav_btn)) pda.QueueInput("TR");
+
+    // Row 2: PG UP | touch row 2 | JOY DWN (tall)
+    if (ImGui::Button("PG UP", nav_btn)) pda.QueueInput("ML");
+    ImGui::SameLine(0, 8);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0, 8);
+    for (int c = 1; c <= 5; c++) {
+        char label[4];
+        std::snprintf(label, sizeof(label), "%d2", c);
+        if (ImGui::Button(label, touch_btn)) pda.QueueInput(label);
+        if (c < 5) ImGui::SameLine(0, 4);
+    }
+    ImGui::SameLine(0, 8);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0, 16);
+    if (ImGui::Button("JOY\nDWN", ImVec2(nav_btn.x, nav_btn.y * 2 + 4))) pda.QueueInput("Joystick");
+
+    // Row 3: PG DWN | touch row 3
+    if (ImGui::Button("PG DWN", nav_btn)) pda.QueueInput("BL");
+    ImGui::SameLine(0, 8);
+    ImGui::TextDisabled("|");
+    ImGui::SameLine(0, 8);
+    for (int c = 1; c <= 5; c++) {
+        char label[4];
+        std::snprintf(label, sizeof(label), "%d3", c);
+        if (ImGui::Button(label, touch_btn)) pda.QueueInput(label);
+        if (c < 5) ImGui::SameLine(0, 4);
     }
 
+    ImGui::Separator();
+
+    // --- System State ---
     Screen* current = pda.GetCurrentScreen();
     std::string screen_name = current ? current->name : "NONE";
-    int remaining = pda.GetDisplay().BufferedRemaining();
-    ImGui::Text("Screen: %s  Writes: %d", screen_name.c_str(), remaining);
 
-    ImGui::Separator();
-
-    // --- Side-by-side: touch preview (left) + screen buffer (right) ---
-    RenderScreenPreview(pda);
-
-    ImGui::Separator();
-
-    // OSC incoming
-    ImGui::Text("OSC Incoming");
-    ImGui::BeginChild("OSCRecv", ImVec2(0, 0), true);
-    auto recvs = osc.GetRecentRecvs();
-    for (auto it = recvs.rbegin(); it != recvs.rend() && std::distance(recvs.rbegin(), it) < 20; ++it) {
-        ImGui::Text("  %s = %.2f", it->path.c_str(), it->value);
-    }
-    ImGui::EndChild();
-}
-
-void UIManager::RenderScreenPreview(PDAController& pda) {
-    Screen* current = pda.GetCurrentScreen();
-    int macro_index = current ? current->macro_index : -1;
-
-    float preview_size = 200.0f;
-    ImVec2 img_size(preview_size, preview_size);
-
-    // Left column: touch preview + nav buttons
-    ImGui::BeginGroup();
-    ImGui::TextDisabled("Touch Preview (click to input)");
-
-    if (macro_atlas_loaded_ && macro_index >= 0) {
-        int grid_col = macro_index % 8;
-        int grid_row = macro_index / 8;
-        ImVec2 uv0(grid_col / 8.0f, grid_row / 8.0f);
-        ImVec2 uv1((grid_col + 1) / 8.0f, (grid_row + 1) / 8.0f);
-        ImVec4 tint(0.2f, 1.0f, 0.4f, 1.0f);
-        ImVec4 bg(0.0f, 0.0f, 0.0f, 1.0f);
-        ImGui::Image(
-            reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(macro_atlas_tex_)),
-            img_size, uv0, uv1, tint, bg);
+    // OSC connection
+    if (osc.IsRunning()) {
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "OSC: connected");
     } else {
-        ImVec2 cursor = ImGui::GetCursorScreenPos();
-        ImGui::GetWindowDrawList()->AddRectFilled(
-            cursor, ImVec2(cursor.x + img_size.x, cursor.y + img_size.y),
-            IM_COL32(0, 0, 0, 255));
-        ImGui::Dummy(img_size);
+        ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "OSC: disconnected");
+    }
+    ImGui::SameLine(200);
+    if (pda.IsBooting()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "State: BOOTING");
+    } else {
+        ImGui::Text("Screen: %s (%d)", screen_name.c_str(), pda.GetScreenStackDepth());
+    }
+    ImGui::SameLine(400);
+    ImGui::Text("Total writes: %d", display.GetTotalWrites());
+
+    // Write head state
+    {
+        const char* mode_str = "TEXT";
+        if (display.GetMode() == PDADisplay::MODE_MACRO) mode_str = "MACRO";
+        else if (display.GetMode() == PDADisplay::MODE_CLEAR) mode_str = "CLEAR";
+
+        int writes = display.BufferedRemaining();
+        int last_char = display.GetLastCharIdx();
+        char ch = (last_char >= 32 && last_char <= 126) ? static_cast<char>(last_char) : '?';
+
+        ImGui::Text("Write head: X=%.3f Y=%.3f  Mode=%s  Char=%d ('%c')",
+                     display.GetHWCursorX(), display.GetHWCursorY(),
+                     mode_str, last_char, ch);
+        ImGui::SameLine(400);
+        if (writes > 0) {
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Queued: %d", writes);
+        } else {
+            ImGui::TextDisabled("Queued: idle");
+        }
     }
 
-    // Handle clicks on the preview
-    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0)) {
-        ImVec2 mouse = ImGui::GetMousePos();
-        ImVec2 rect_min = ImGui::GetItemRectMin();
-        ImVec2 rect_size = ImGui::GetItemRectSize();
-        float nx = (mouse.x - rect_min.x) / rect_size.x;
-        float ny = (mouse.y - rect_min.y) / rect_size.y;
-        HandlePreviewClick(pda, nx, ny);
+    // Last input
+    std::string last_input = pda.GetLastInput();
+    if (!last_input.empty()) {
+        double age = std::chrono::duration<double>(
+            std::chrono::steady_clock::now().time_since_epoch()).count() - pda.GetLastInputTime();
+        if (age < 10.0) {
+            ImGui::Text("Last input: %s (%.1fs ago)", last_input.c_str(), age);
+        }
     }
 
-    // Nav buttons
-    if (ImGui::Button("HOME")) pda.QueueInput("TL");
-    ImGui::SameLine();
-    if (ImGui::Button("BACK")) pda.QueueInput("ML");
-    ImGui::SameLine();
-    if (ImGui::Button("JOY")) pda.QueueInput("Joystick");
-    ImGui::SameLine();
-    if (ImGui::Button("TR")) pda.QueueInput("TR");
+    // Subsystem status line
+    {
+        auto* whisper = pda.GetWhisperWorker();
+        bool any_locked = false;
+        for (int d = 0; d < PDAController::SPVR_DEVICE_COUNT; d++) {
+            if (pda.GetSPVRStatus(d) >= 2) { any_locked = true; break; }
+        }
 
-    ImGui::EndGroup();
+        if ((whisper && whisper->IsRunning()) || any_locked) {
+            if (whisper && whisper->IsRunning()) {
+                ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "CC: listening");
+                std::string latest = whisper->PeekLatest();
+                if (!latest.empty()) {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("| %s", latest.c_str());
+                }
+            }
+            if (any_locked) {
+                if (whisper && whisper->IsRunning()) ImGui::SameLine(400);
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "SPVR: locked");
+            }
+        }
+    }
 
-    // Right column: screen buffer text
-    ImGui::SameLine();
+    ImGui::Separator();
 
-    ImGui::BeginGroup();
-    ImGui::TextDisabled("Screen Buffer (dynamic text)");
-    std::string dump = pda.GetDisplay().GetScreen().Dump();
-    ImGui::PushFont(ImGui::GetIO().Fonts->Fonts[0]);
-    ImGui::TextUnformatted(dump.c_str());
-    ImGui::PopFont();
-    ImGui::EndGroup();
-}
+    // --- Keyboard shortcuts ---
+    ImGui::TextDisabled("Keys: 1-5 row1 | Q-T row2 | A-G row3 | F1=HOME F2=PGUP F3=PGDN F4=SEL F5=JOY");
 
-void UIManager::HandlePreviewClick(PDAController& pda, float nx, float ny) {
-    using namespace Glyphs;
+    ImGui::Separator();
 
-    // Map normalized position to grid coordinates
-    int col = static_cast<int>(nx * COLS);
-    int row = static_cast<int>(ny * ROWS);
-    col = std::clamp(col, 0, COLS - 1);
-    row = std::clamp(row, 0, ROWS - 1);
+    // --- Recent OSC activity ---
+    ImGui::Text("Recent OSC");
+    float footer_h = ImGui::GetFrameHeightWithSpacing() + 4;
+    ImGui::BeginChild("OSCActivity", ImVec2(0, -footer_h), true);
 
-    // Row 7 (status bar) and row 0 (title bar) — not interactive
-    if (row == 0 || row == 7) return;
+    ImGui::TextDisabled("Sent (last 10):");
+    auto sends = osc.GetRecentSends();
+    int send_count = 0;
+    for (auto it = sends.rbegin(); it != sends.rend() && send_count < 10; ++it, ++send_count) {
+        ImGui::Text("  > %s = %.2f", it->path.c_str(), it->value);
+    }
+    if (sends.empty()) ImGui::TextDisabled("  (none)");
 
-    // Map to 5x3 touch zone grid
-    int tile_col = col / CHARS_PER_TILE; // 0-4
-    tile_col = std::clamp(tile_col, 0, TILE_COLS - 1);
+    ImGui::Spacing();
+    ImGui::TextDisabled("Received (last 10):");
+    auto recvs = osc.GetRecentRecvs();
+    int recv_count = 0;
+    for (auto it = recvs.rbegin(); it != recvs.rend() && recv_count < 10; ++it, ++recv_count) {
+        ImGui::Text("  < %s = %.2f", it->path.c_str(), it->value);
+    }
+    if (recvs.empty()) ImGui::TextDisabled("  (none)");
 
-    // Map row to zone: ZONE_ROWS are {1, 4, 6}
-    // Rows 1-3 → zone 0, rows 4-5 → zone 1, row 6 → zone 2
-    int tile_row;
-    if (row <= 3) tile_row = 0;
-    else if (row <= 5) tile_row = 1;
-    else tile_row = 2;
+    ImGui::EndChild();
 
-    // Format: "12" = col 1, row 2 (1-indexed)
-    std::string suffix = std::to_string(tile_col + 1) + std::to_string(tile_row + 1);
-    Logger::Debug("Preview click: grid(" + std::to_string(col) + "," + std::to_string(row) +
-                  ") -> touch " + suffix);
-    pda.QueueInput(suffix);
+    // --- Footer ---
+    ImGui::TextDisabled("foxipso.com");
 }
 
 void UIManager::RenderConfigTab(PDAController& pda, Config& config) {

@@ -37,19 +37,12 @@ public:
 
 private:
     void RenderStatusTab(PDAController& pda, OSCManager& osc);
-    void RenderScreenPreview(PDAController& pda);
     void RenderConfigTab(PDAController& pda, Config& config);
     void RenderLogTab();
 
-    bool LoadMacroAtlas(const std::string& path);
-    void HandlePreviewClick(PDAController& pda, float nx, float ny);
     void HandleKeyboardShortcuts(PDAController& pda);
 
     GLFWwindow* window_ = nullptr;
-
-    // Macro atlas texture
-    uint32_t macro_atlas_tex_ = 0;
-    bool macro_atlas_loaded_ = false;
 
     // Log circular buffer
     std::deque<std::string> log_lines_;

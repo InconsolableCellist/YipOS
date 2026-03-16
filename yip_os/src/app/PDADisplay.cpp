@@ -53,6 +53,8 @@ void PDADisplay::SendWrite(int col, float row, int char_idx, bool sleep) {
     MoveCursor(col, row);
     SendParam("WT_CharLo", static_cast<float>(char_idx & 0xFF));
     SendParam("WT_CharHi", static_cast<float>((char_idx >> 8) & 0xFF));
+    last_char_idx_ = char_idx;
+    total_writes_++;
     last_write_time_ = std::chrono::steady_clock::now();
     if (sleep) {
         SleepMs(write_delay_);
