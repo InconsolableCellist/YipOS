@@ -262,7 +262,10 @@ void OSCManager::ReceiveThread() {
                     }
                 }
 
-                LogRecv(address, value);
+                // Only log messages we actually handle
+                if (address.find("CRT_Wrist_") != std::string::npos) {
+                    LogRecv(address, value);
+                }
 
                 if (input_handler_) {
                     input_handler_(address, value);

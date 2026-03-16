@@ -95,84 +95,98 @@ std::string WhisperWorker::PeekLatest() const {
     return latest_text_;
 }
 
+// Check if whisper output is junk we should discard
+static bool IsJunkText(const std::string& text) {
+    if (text.empty()) return true;
+
+    // Common whisper hallucinations for silence/noise
+    static const char* junk_phrases[] = {
+        "[BLANK_AUDIO]", "[SILENCE]", "[ Silence ]", "(silence)",
+        "[Music]", "[music]", "(music)",
+        "you", "You", "Thank you.", "Thanks for watching!",
+        "Bye.", "Bye!", "...",
+    };
+    for (auto* phrase : junk_phrases) {
+        if (text == phrase) return true;
+    }
+
+    // Filter text with no alpha characters
+    bool has_alpha = false;
+    for (char c : text) {
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
+            has_alpha = true;
+            break;
+        }
+    }
+    return !has_alpha;
+}
+
 void WhisperWorker::ProcessLoop() {
-    // Keep a sliding window of audio
-    std::vector<float> window;
-    window.reserve(WHISPER_SAMPLE_RATE * CHUNK_SECONDS);
+    // Accumulate audio, process full chunks, no overlap.
+    // This avoids duplicate/partial results from the sliding window approach.
+    std::vector<float> chunk;
+    chunk.reserve(WHISPER_SAMPLE_RATE * chunk_seconds_);
 
     while (running_) {
-        // Wait for enough audio
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
         if (!running_) break;
 
         // Read available audio
         size_t avail = audio_buffer_->Available();
         if (avail == 0) continue;
 
-        // Read new samples
         std::vector<float> new_samples(avail);
         size_t read = audio_buffer_->Read(new_samples.data(), avail);
         new_samples.resize(read);
+        chunk.insert(chunk.end(), new_samples.begin(), new_samples.end());
 
-        // Append to sliding window
-        window.insert(window.end(), new_samples.begin(), new_samples.end());
+        // Wait until we have a full chunk before processing
+        size_t chunk_samples = WHISPER_SAMPLE_RATE * chunk_seconds_;
+        if (chunk.size() < chunk_samples) continue;
 
-        // Cap window size
-        size_t max_window = WHISPER_SAMPLE_RATE * CHUNK_SECONDS;
-        if (window.size() > max_window) {
-            window.erase(window.begin(), window.begin() + (window.size() - max_window));
-        }
-
-        // Need minimum audio before processing
-        if (window.size() < static_cast<size_t>(MIN_SAMPLES)) continue;
-
-        // Run whisper inference
+        // Process the chunk
         struct whisper_full_params wparams = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
         wparams.print_progress = false;
         wparams.print_special = false;
         wparams.print_realtime = false;
         wparams.print_timestamps = false;
-        wparams.single_segment = true;
+        wparams.single_segment = false;
         wparams.no_context = true;
         wparams.language = language_.c_str();
         wparams.n_threads = 4;
 
-        int result = whisper_full(ctx_, wparams, window.data(), static_cast<int>(window.size()));
+        int result = whisper_full(ctx_, wparams, chunk.data(), static_cast<int>(chunk.size()));
+
+        // Clear chunk — each piece of audio is processed exactly once
+        chunk.clear();
+
         if (result != 0) {
             Logger::Warning("CC: Whisper inference failed");
             continue;
         }
 
-        // Collect segments
+        // Collect all segments from this chunk
         int n_segments = whisper_full_n_segments(ctx_);
         std::string combined;
         for (int i = 0; i < n_segments; i++) {
             const char* text = whisper_full_get_segment_text(ctx_, i);
             if (text) {
                 std::string seg = text;
-                // Trim leading/trailing whitespace
                 while (!seg.empty() && seg.front() == ' ') seg.erase(seg.begin());
                 while (!seg.empty() && seg.back() == ' ') seg.pop_back();
-                if (!seg.empty()) {
+                if (!seg.empty() && !IsJunkText(seg)) {
                     if (!combined.empty()) combined += " ";
                     combined += seg;
                 }
             }
         }
 
-        if (!combined.empty() && combined != latest_text_) {
+        if (!combined.empty()) {
             std::lock_guard<std::mutex> lock(text_mutex_);
             latest_text_ = combined;
             text_queue_.push(combined);
-            // Keep queue manageable
             while (text_queue_.size() > 50)
                 text_queue_.pop();
-        }
-
-        // Slide window forward
-        size_t step = WHISPER_SAMPLE_RATE * STEP_SECONDS;
-        if (window.size() > step) {
-            window.erase(window.begin(), window.begin() + step);
         }
     }
 }

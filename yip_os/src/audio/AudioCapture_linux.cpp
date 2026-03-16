@@ -22,6 +22,7 @@ public:
     }
 
     void SetDevice(const std::string&) override {}
+    std::string GetCurrentDeviceId() const override { return ""; }
     std::string GetCurrentDeviceName() const override { return "None (Linux stub)"; }
 };
 

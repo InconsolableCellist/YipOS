@@ -230,12 +230,14 @@ void PDAController::MaybeUpdate() {
 
 void PDAController::MaybeRefresh() {
     if (display_.IsBuffered()) return;
+    Screen* screen = GetCurrentScreen();
+    if (!screen) return;
+    // Screens that manage their own updates (e.g. CC) skip the macro re-stamp cycle
+    if (screen->skip_clock) return;
     float interval = GetRefreshInterval();
     if (interval <= 0) return;
     double now = MonotonicNow();
     if (now - last_refresh_ >= interval) {
-        Screen* screen = GetCurrentScreen();
-        if (!screen) return;
         Logger::Debug("Refreshing " + screen->name);
 
         if (screen->macro_index >= 0) {
@@ -259,6 +261,11 @@ void PDAController::UpdateClock() {
     // Refresh system stats at 1Hz (CPU needs two samples to compute delta)
     system_stats_->Update();
 
+    // Skip clock/cursor writes on screens that manage their own updates
+    // (e.g. CC screen uses the full display for rolling text)
+    Screen* s = GetCurrentScreen();
+    if (s && s->skip_clock) return;
+
     // Buffer clock + cursor writes so TickRefresh drains them
     // with UI renders between each, instead of blocking ~630ms.
     display_.BeginBuffered();
@@ -273,6 +280,9 @@ void PDAController::UpdateClock() {
 }
 
 void PDAController::ToggleCursor() {
+    Screen* s = GetCurrentScreen();
+    if (s && s->skip_clock) return;
+
     cursor_frame_ = (cursor_frame_ + 1) % 4;
     // Goes into the buffer started by UpdateClock
     display_.WriteChar(1, 7, static_cast<int>(GetSpinnerChar()));

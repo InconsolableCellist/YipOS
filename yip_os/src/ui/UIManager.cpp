@@ -467,36 +467,70 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
         if (whisper->IsModelLoaded()) {
             ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Model: %s", whisper->GetModelName().c_str());
         } else {
-            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Model: not loaded");
+            std::string saved = config.GetState("cc.model");
+            if (!saved.empty()) {
+                ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "Model: %s (not loaded)", saved.c_str());
+            } else {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Model: not loaded");
+            }
         }
 
         // Model loading buttons
         if (ImGui::Button("Load tiny.en")) {
-            whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en"));
+            if (whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en"))) {
+                config.SetState("cc.model", whisper->GetModelName());
+            }
         }
         ImGui::SameLine();
         if (ImGui::Button("Load base.en")) {
-            whisper->LoadModel(WhisperWorker::DefaultModelPath("base.en"));
+            if (whisper->LoadModel(WhisperWorker::DefaultModelPath("base.en"))) {
+                config.SetState("cc.model", whisper->GetModelName());
+            }
         }
         ImGui::SameLine();
         ImGui::TextDisabled("Place models in config/models/");
 
-        // Audio device selection
+        // Audio device selection — auto-enumerate on first view and restore saved selection
         ImGui::Text("Audio Device:");
         {
             static std::vector<AudioDevice> devices;
-            static int selected_idx = 0;
+            static int selected_idx = -1;
+            static bool devices_initialized = false;
+
+            if (!devices_initialized) {
+                devices = audio->GetDevices();
+                // Restore saved device
+                std::string saved_id = config.GetState("cc.device");
+                if (!saved_id.empty()) {
+                    for (int i = 0; i < static_cast<int>(devices.size()); i++) {
+                        if (devices[i].id == saved_id) {
+                            selected_idx = i;
+                            audio->SetDevice(saved_id);
+                            break;
+                        }
+                    }
+                }
+                devices_initialized = true;
+            }
+
             if (ImGui::Button("Refresh Devices")) {
                 devices = audio->GetDevices();
-                selected_idx = 0;
+                // Try to keep current selection
+                std::string cur_id = audio->GetCurrentDeviceId();
+                selected_idx = -1;
+                for (int i = 0; i < static_cast<int>(devices.size()); i++) {
+                    if (devices[i].id == cur_id) {
+                        selected_idx = i;
+                        break;
+                    }
+                }
             }
             if (!devices.empty()) {
-                // Build combo items
-                static std::string combo_preview;
-                if (selected_idx < static_cast<int>(devices.size()))
+                std::string combo_preview;
+                if (selected_idx >= 0 && selected_idx < static_cast<int>(devices.size()))
                     combo_preview = devices[selected_idx].name;
                 else
-                    combo_preview = "Select...";
+                    combo_preview = audio->GetCurrentDeviceName();
 
                 if (ImGui::BeginCombo("##cc_device", combo_preview.c_str())) {
                     for (int i = 0; i < static_cast<int>(devices.size()); i++) {
@@ -504,17 +538,26 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
                         if (ImGui::Selectable(devices[i].name.c_str(), is_selected)) {
                             selected_idx = i;
                             audio->SetDevice(devices[i].id);
+                            config.SetState("cc.device", devices[i].id);
                         }
                         if (is_selected) ImGui::SetItemDefaultFocus();
                     }
                     ImGui::EndCombo();
                 }
             } else {
-                ImGui::TextDisabled("Click 'Refresh Devices' to enumerate");
+                ImGui::TextDisabled("No devices found");
             }
         }
 
         ImGui::Text("Current: %s", audio->GetCurrentDeviceName().c_str());
+
+        // Chunk window size
+        int chunk_sec = whisper->GetChunkSeconds();
+        if (ImGui::SliderInt("Window (sec)", &chunk_sec, 2, 10)) {
+            whisper->SetChunkSeconds(chunk_sec);
+            config.SetState("cc.window", std::to_string(chunk_sec));
+        }
+        ImGui::TextDisabled("Longer = more accurate but slower to appear");
 
         // Status
         bool capturing = audio->IsRunning();
@@ -536,7 +579,8 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
         if (!transcribing) {
             if (ImGui::Button("Start CC")) {
                 if (!whisper->IsModelLoaded()) {
-                    whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en"));
+                    std::string saved = config.GetState("cc.model", "tiny.en");
+                    whisper->LoadModel(WhisperWorker::DefaultModelPath(saved));
                 }
                 if (whisper->IsModelLoaded()) {
                     audio->Start();

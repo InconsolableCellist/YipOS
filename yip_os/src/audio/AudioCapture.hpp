@@ -44,6 +44,7 @@ public:
 
     virtual std::vector<AudioDevice> GetDevices() = 0;
     virtual void SetDevice(const std::string& device_id) = 0;
+    virtual std::string GetCurrentDeviceId() const = 0;
     virtual std::string GetCurrentDeviceName() const = 0;
 
     // Audio data flows into this ring buffer (16kHz mono float32)

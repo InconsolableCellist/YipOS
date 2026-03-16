@@ -120,6 +120,10 @@ public:
         if (was_running) Start();
     }
 
+    std::string GetCurrentDeviceId() const override {
+        return selected_device_id_;
+    }
+
     std::string GetCurrentDeviceName() const override {
         return current_device_name_;
     }

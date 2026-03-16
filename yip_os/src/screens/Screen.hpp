@@ -14,6 +14,7 @@ public:
     int macro_index = -1;
     float refresh_interval = 0.0f;
     float update_interval = 0.0f;
+    bool skip_clock = false; // skip clock/cursor writes (for screens that own the full display)
 
     Screen(PDAController& pda);
     virtual ~Screen() = default;

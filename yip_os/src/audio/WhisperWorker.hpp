@@ -35,6 +35,8 @@ public:
 
     // Configuration
     void SetLanguage(const std::string& lang) { language_ = lang; }
+    void SetChunkSeconds(int seconds) { chunk_seconds_ = std::max(2, std::min(seconds, 10)); }
+    int GetChunkSeconds() const { return chunk_seconds_; }
 
     static std::string DefaultModelPath(const std::string& model_name = "tiny.en");
 
@@ -57,10 +59,9 @@ private:
     // Processing buffer (reusable)
     std::vector<float> process_buf_;
 
+    int chunk_seconds_ = 3; // adjustable: 2-10 seconds
+
     static constexpr int WHISPER_SAMPLE_RATE = 16000;
-    static constexpr int CHUNK_SECONDS = 5;       // process 5 seconds at a time
-    static constexpr int STEP_SECONDS = 2;        // step forward 2 seconds between chunks
-    static constexpr int MIN_SAMPLES = WHISPER_SAMPLE_RATE * 2; // need at least 2 seconds
 };
 
 } // namespace YipOS
