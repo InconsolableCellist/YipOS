@@ -69,6 +69,9 @@ set(YIPOS_SOURCES
     src/screens/VRCXScreen.cpp
     src/screens/VRCXWorldsScreen.cpp
     src/screens/VRCXWorldDetailScreen.cpp
+    src/screens/VRCXFeedScreen.cpp
+    src/screens/VRCXFeedDetailScreen.cpp
+    src/screens/VRCXFriendDetailScreen.cpp
     src/ui/UIManager.cpp
 )
 

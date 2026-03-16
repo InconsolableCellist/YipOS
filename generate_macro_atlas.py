@@ -341,12 +341,17 @@ def layout_vrcx(buf):
     buf.put_frame("VRCX")
     btn_cols = [4, 20, 36]
 
-    # Row 1 tiles (touch row 1): WORLDS, FEED, STATUS
-    labels_r1 = [("WORLDS", True), ("FEED", False), ("STATUS", False)]
+    # Row 1 tiles (touch row 1): WORLD HIST, FRND FEED, STATUS
     row1 = round(ZONE_ROWS[0])  # row 1
-    for (label, active), col in zip(labels_r1, btn_cols):
-        start = col - len(label) // 2
-        buf.put_text(start, row1, label, inverted=active)
+    # Two-row tiles
+    for label1, label2, active, col in [
+        ("WORLD", "HIST", True, btn_cols[0]),
+        ("FRND", "FEED", True, btn_cols[1]),
+        ("STATUS", None, False, btn_cols[2]),
+    ]:
+        buf.put_text(col - len(label1) // 2, row1, label1, inverted=active)
+        if label2:
+            buf.put_text(col - len(label2) // 2, row1 + 1, label2, inverted=active)
 
     # Row 2 tiles (touch row 2): NOTIF, -----, -----
     labels_r2 = [("NOTIF", False), ("-----", False), ("-----", False)]
@@ -374,6 +379,42 @@ def layout_vrcx_world_detail(buf):
     r2 = "(OPN BRWSR)"
     buf.put_text(COLS - 1 - len(r1), 5, r1, inverted=True)
     buf.put_text(COLS - 1 - len(r2), 6, r2, inverted=True)
+    buf.put_status_bar()
+
+
+def layout_vrcx_feed(buf):
+    """VRCX Feed: frame + TR select hint + status bar."""
+    buf.put_frame("FEED")
+    # Right border arrow to indicate TR selects the highlighted item
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    buf.put_status_bar()
+
+
+def layout_vrcx_feed_detail(buf):
+    """VRCX Feed Detail: frame + 3 buttons + status bar."""
+    buf.put_frame("FEED DTL")
+    # Left: WRLD DTL (touch 13)
+    buf.put_text(1, 5, "WRLD DTL", inverted=True)
+    buf.put_text(1, 6, "(INSTANCE)", inverted=True)
+    # Center: FRIEND (touch 33)
+    f1 = "FRIEND"
+    f2 = "(DETAILS)"
+    buf.put_text(20 - len(f1) // 2, 5, f1, inverted=True)
+    buf.put_text(20 - len(f2) // 2, 6, f2, inverted=True)
+    # Right: PROFILE (touch 53)
+    p1 = "PROFILE"
+    p2 = "(OPN BRWSR)"
+    buf.put_text(COLS - 1 - len(p1), 5, p1, inverted=True)
+    buf.put_text(COLS - 1 - len(p2), 6, p2, inverted=True)
+    buf.put_status_bar()
+
+
+def layout_vrcx_friend_detail(buf):
+    """VRCX Friend Detail: frame + PROFILE button + status bar."""
+    buf.put_frame("FRIEND")
+    # Right: PROFILE button (touch 53, single row on row 6)
+    p1 = "PROFILE"
+    buf.put_text(COLS - 1 - len(p1), 6, p1, inverted=True)
     buf.put_status_bar()
 
 
@@ -454,10 +495,12 @@ SCREEN_LAYOUTS = {
     8: ("VRCX", layout_vrcx),
     9: ("WORLDS", layout_vrcx_worlds),
     10: ("WORLD", layout_vrcx_world_detail),
+    11: ("FEED", layout_vrcx_feed),
+    12: ("FEED DTL", layout_vrcx_feed_detail),
+    13: ("FRIEND", layout_vrcx_friend_detail),
     # Future:
-    # 11: ("FEED", layout_vrcx_feed),
-    # 11: ("STATUS", layout_vrcx_status),
-    # 12: ("NOTIF", layout_vrcx_notif),
+    # 14: ("STATUS", layout_vrcx_status),
+    # 15: ("NOTIF", layout_vrcx_notif),
 }
 
 

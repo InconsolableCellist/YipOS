@@ -1,4 +1,4 @@
-#include "VRCXWorldsScreen.hpp"
+#include "VRCXFeedScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Logger.hpp"
@@ -9,82 +9,87 @@ namespace YipOS {
 
 using namespace Glyphs;
 
-VRCXWorldsScreen::VRCXWorldsScreen(PDAController& pda) : Screen(pda) {
-    name = "WORLDS";
-    macro_index = 9;
+VRCXFeedScreen::VRCXFeedScreen(PDAController& pda) : Screen(pda) {
+    name = "FEED";
+    macro_index = 11;
     LoadData();
 }
 
-void VRCXWorldsScreen::LoadData() {
+void VRCXFeedScreen::LoadData() {
     auto* vrcx = pda_.GetVRCXData();
     if (vrcx && vrcx->IsOpen()) {
-        worlds_ = vrcx->GetWorlds(300);
+        feed_ = vrcx->GetFeed(200);
     }
 }
 
-int VRCXWorldsScreen::PageCount() const {
-    int n = static_cast<int>(worlds_.size());
+int VRCXFeedScreen::PageCount() const {
+    int n = static_cast<int>(feed_.size());
     if (n == 0) return 1;
     return (n + ROWS_PER_PAGE - 1) / ROWS_PER_PAGE;
 }
 
-int VRCXWorldsScreen::ItemCountOnPage() const {
-    if (worlds_.empty()) return 0;
+int VRCXFeedScreen::ItemCountOnPage() const {
+    if (feed_.empty()) return 0;
     int base = page_ * ROWS_PER_PAGE;
-    int remaining = static_cast<int>(worlds_.size()) - base;
+    int remaining = static_cast<int>(feed_.size()) - base;
     return std::min(remaining, ROWS_PER_PAGE);
 }
 
-void VRCXWorldsScreen::Render() {
-    RenderFrame("WORLDS");
+void VRCXFeedScreen::Render() {
+    RenderFrame("FEED");
     RenderRows();
     RenderPageIndicators();
     RenderStatusBar();
 }
 
-void VRCXWorldsScreen::RenderDynamic() {
+void VRCXFeedScreen::RenderDynamic() {
     RenderRows();
     RenderPageIndicators();
     RenderClock();
     RenderCursor();
 }
 
-void VRCXWorldsScreen::RenderRow(int i, bool selected) {
+void VRCXFeedScreen::RenderRow(int i, bool selected) {
     auto& d = display_;
     int idx = page_ * ROWS_PER_PAGE + i;
     int row = 1 + i;
-    if (idx >= static_cast<int>(worlds_.size())) return;
+    if (idx >= static_cast<int>(feed_.size())) return;
 
-    auto& w = worlds_[idx];
+    auto& f = feed_[idx];
 
-    std::string dur = FormatDuration(w.time_seconds);
-    int dur_len = static_cast<int>(dur.size());
+    // Format: "+Name          12:34" or "-Name          12:34"
+    char indicator = (f.type == "Online") ? '+' : '-';
+    std::string time_str = FormatTime(f.created_at);
+    int time_len = static_cast<int>(time_str.size());
     int content_width = COLS - 2;
-    int name_max = content_width - dur_len - 1;
-    std::string wname = w.world_name.empty() ? "(unknown)" : w.world_name;
-    if (static_cast<int>(wname.size()) > name_max) {
-        wname = wname.substr(0, name_max);
+    // indicator(1) + name + time
+    int name_max = content_width - time_len - 1;
+    std::string line;
+    line += indicator;
+    std::string dname = f.display_name;
+    if (static_cast<int>(dname.size()) > name_max - 1) {
+        dname = dname.substr(0, name_max - 1);
     }
+    line += dname;
 
-    // First 3 chars inverted = selection indicator, rest always plain
+    // First 3 chars inverted = selection indicator
     static constexpr int SEL_WIDTH = 3;
 
-    // Write name (first 3 chars may be inverted)
-    for (int c = 0; c < static_cast<int>(wname.size()); c++) {
-        int ch = static_cast<int>(wname[c]);
+    for (int c = 0; c < static_cast<int>(line.size()); c++) {
+        int ch = static_cast<int>(line[c]);
         if (selected && c < SEL_WIDTH) ch += INVERT_OFFSET;
         d.WriteChar(1 + c, row, ch);
     }
 
-    // Duration right-justified
-    int dur_col = COLS - 1 - dur_len;
-    d.WriteText(dur_col, row, dur);
+    // Time right-justified
+    int time_col = COLS - 1 - time_len;
+    d.WriteText(time_col, row, time_str);
 }
 
-void VRCXWorldsScreen::RenderRows() {
+void VRCXFeedScreen::RenderRows() {
     auto& d = display_;
 
-    if (worlds_.empty()) {
+    if (feed_.empty()) {
         d.WriteText(2, 3, "No VRCX data");
         return;
     }
@@ -95,8 +100,7 @@ void VRCXWorldsScreen::RenderRows() {
     }
 }
 
-void VRCXWorldsScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
-    // Only update the two affected rows without a full re-render
+void VRCXFeedScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
     display_.CancelBuffered();
     display_.BeginBuffered();
     if (old_cursor != new_cursor && old_cursor >= 0 && old_cursor < ItemCountOnPage()) {
@@ -108,13 +112,12 @@ void VRCXWorldsScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
     RenderPageIndicators();
 }
 
-void VRCXWorldsScreen::RenderPageIndicators() {
+void VRCXFeedScreen::RenderPageIndicators() {
     auto& d = display_;
 
-    // Always show cursor position indicator
-    if (!worlds_.empty()) {
+    if (!feed_.empty()) {
         int global_idx = page_ * ROWS_PER_PAGE + cursor_ + 1;
-        int total = static_cast<int>(worlds_.size());
+        int total = static_cast<int>(feed_.size());
         char pos[12];
         std::snprintf(pos, sizeof(pos), "%d/%d", global_idx, total);
         d.WriteText(3, 7, pos);
@@ -130,22 +133,17 @@ void VRCXWorldsScreen::RenderPageIndicators() {
     }
 }
 
-std::string VRCXWorldsScreen::FormatDuration(int64_t seconds) {
-    if (seconds <= 0) return "  <1m";
-    if (seconds < 3600) {
-        char buf[8];
-        std::snprintf(buf, sizeof(buf), "%3ldm", static_cast<long>(seconds / 60));
-        return buf;
+std::string VRCXFeedScreen::FormatTime(const std::string& created_at) {
+    // created_at format: "2026-03-15 12:34:56"
+    // Extract HH:MM
+    if (created_at.size() >= 16) {
+        return created_at.substr(11, 5);
     }
-    int hrs = static_cast<int>(seconds / 3600);
-    int mins = static_cast<int>((seconds % 3600) / 60);
-    char buf[8];
-    std::snprintf(buf, sizeof(buf), "%d:%02d", hrs, mins);
-    return buf;
+    return "     ";
 }
 
-bool VRCXWorldsScreen::OnInput(const std::string& key) {
-    if (worlds_.empty()) return false;
+bool VRCXFeedScreen::OnInput(const std::string& key) {
+    if (feed_.empty()) return false;
 
     // Joystick: cycle cursor down, wrap to top of current page
     if (key == "Joystick") {
@@ -157,13 +155,12 @@ bool VRCXWorldsScreen::OnInput(const std::string& key) {
         return true;
     }
 
-    // TR: select highlighted world → open detail screen
+    // TR: select highlighted entry → open detail screen
     if (key == "TR") {
         int idx = page_ * ROWS_PER_PAGE + cursor_;
-        if (idx < static_cast<int>(worlds_.size())) {
-            Logger::Info("WORLDS: selected #" + std::to_string(idx) + " " + worlds_[idx].world_name);
-            pda_.SetSelectedWorld(&worlds_[idx]);
-            pda_.SetPendingNavigate("VRCX_WORLD_DETAIL");
+        if (idx < static_cast<int>(feed_.size())) {
+            pda_.SetSelectedFeed(&feed_[idx]);
+            pda_.SetPendingNavigate("VRCX_FEED_DETAIL");
         }
         return true;
     }

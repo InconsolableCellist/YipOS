@@ -16,6 +16,7 @@ class NetTracker;
 class SystemStats;
 class VRCXData;
 struct VRCXWorldEntry;
+struct VRCXFeedEntry;
 
 class PDAController {
 public:
@@ -59,6 +60,8 @@ public:
     void SetVRCXData(VRCXData* d) { vrcx_data_ = d; }
     void SetSelectedWorld(const VRCXWorldEntry* w) { selected_world_ = w; }
     const VRCXWorldEntry* GetSelectedWorld() const { return selected_world_; }
+    void SetSelectedFeed(const VRCXFeedEntry* f) { selected_feed_ = f; }
+    const VRCXFeedEntry* GetSelectedFeed() const { return selected_feed_; }
     Screen* GetCurrentScreen() const;
     int GetScreenStackDepth() const { return static_cast<int>(screen_stack_.size()); }
     char GetSpinnerChar() const;
@@ -101,6 +104,7 @@ private:
     bool reboot_requested_ = false;
     VRCXData* vrcx_data_ = nullptr;
     const VRCXWorldEntry* selected_world_ = nullptr;
+    const VRCXFeedEntry* selected_feed_ = nullptr;
 };
 
 } // namespace YipOS

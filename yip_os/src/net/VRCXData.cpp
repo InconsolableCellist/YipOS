@@ -126,7 +126,8 @@ std::vector<VRCXFeedEntry> VRCXData::GetFeed(int limit, int offset) {
     std::vector<VRCXFeedEntry> result;
     if (!db_ || user_prefix_.empty()) return result;
 
-    std::string sql = "SELECT created_at, display_name, type FROM " +
+    std::string sql = "SELECT created_at, display_name, type, world_name, "
+                      "user_id, location, group_name, time FROM " +
                       user_prefix_ + "_feed_online_offline "
                       "ORDER BY created_at DESC LIMIT ? OFFSET ?";
     sqlite3_stmt* stmt = nullptr;
@@ -141,6 +142,11 @@ std::vector<VRCXFeedEntry> VRCXData::GetFeed(int limit, int offset) {
         e.created_at = ColText(stmt, 0);
         e.display_name = ColText(stmt, 1);
         e.type = ColText(stmt, 2);
+        e.world_name = ColText(stmt, 3);
+        e.user_id = ColText(stmt, 4);
+        e.location = ColText(stmt, 5);
+        e.group_name = ColText(stmt, 6);
+        e.time_seconds = sqlite3_column_int64(stmt, 7);
         result.push_back(std::move(e));
     }
     sqlite3_finalize(stmt);
@@ -228,6 +234,132 @@ int VRCXData::GetStatusCount() {
 int VRCXData::GetNotifCount() {
     return (db_ && !user_prefix_.empty())
         ? CountTable(db_, user_prefix_ + "_notifications") : 0;
+}
+
+VRCXData::FriendInfo VRCXData::GetFriendInfo(const std::string& user_id) {
+    FriendInfo info;
+    if (!db_ || user_prefix_.empty() || user_id.empty()) return info;
+
+    std::string sql = "SELECT display_name, trust_level, friend_number FROM " +
+                      user_prefix_ + "_friend_log_current WHERE user_id = ?";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        return info;
+
+    sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        info.display_name = ColText(stmt, 0);
+        info.trust_level = ColText(stmt, 1);
+        info.friend_number = sqlite3_column_int(stmt, 2);
+        info.found = true;
+    }
+    sqlite3_finalize(stmt);
+    return info;
+}
+
+VRCXStatusEntry VRCXData::GetLatestUserStatus(const std::string& user_id) {
+    VRCXStatusEntry entry;
+    if (!db_ || user_prefix_.empty() || user_id.empty()) return entry;
+
+    std::string sql = "SELECT created_at, display_name, status, status_description FROM " +
+                      user_prefix_ + "_feed_status WHERE user_id = ? "
+                      "ORDER BY created_at DESC LIMIT 1";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        return entry;
+
+    sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        entry.created_at = ColText(stmt, 0);
+        entry.display_name = ColText(stmt, 1);
+        entry.status = ColText(stmt, 2);
+        entry.status_description = ColText(stmt, 3);
+    }
+    sqlite3_finalize(stmt);
+    return entry;
+}
+
+int VRCXData::GetUserOnlineCount(const std::string& user_id) {
+    if (!db_ || user_prefix_.empty() || user_id.empty()) return 0;
+
+    std::string sql = "SELECT count(*) FROM " +
+                      user_prefix_ + "_feed_online_offline WHERE user_id = ?";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        return 0;
+
+    sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+    int count = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+        count = sqlite3_column_int(stmt, 0);
+    sqlite3_finalize(stmt);
+    return count;
+}
+
+VRCXFeedEntry VRCXData::GetLatestUserFeed(const std::string& user_id) {
+    VRCXFeedEntry entry;
+    if (!db_ || user_prefix_.empty() || user_id.empty()) return entry;
+
+    std::string sql = "SELECT created_at, display_name, type, world_name, "
+                      "user_id, location, group_name, time FROM " +
+                      user_prefix_ + "_feed_online_offline WHERE user_id = ? "
+                      "ORDER BY created_at DESC LIMIT 1";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(db_, sql.c_str(), -1, &stmt, nullptr) != SQLITE_OK)
+        return entry;
+
+    sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        entry.created_at = ColText(stmt, 0);
+        entry.display_name = ColText(stmt, 1);
+        entry.type = ColText(stmt, 2);
+        entry.world_name = ColText(stmt, 3);
+        entry.user_id = ColText(stmt, 4);
+        entry.location = ColText(stmt, 5);
+        entry.group_name = ColText(stmt, 6);
+        entry.time_seconds = sqlite3_column_int64(stmt, 7);
+    }
+    sqlite3_finalize(stmt);
+    return entry;
+}
+
+VRCXData::TimeTogether VRCXData::GetTimeTogether(const std::string& user_id) {
+    TimeTogether tt;
+    if (!db_ || user_id.empty()) return tt;
+
+    // Total time from leave events (time column = duration in that instance)
+    {
+        sqlite3_stmt* stmt = nullptr;
+        int rc = sqlite3_prepare_v2(db_,
+            "SELECT COALESCE(SUM(time), 0) FROM gamelog_join_leave "
+            "WHERE user_id = ? AND type = 'leave'",
+            -1, &stmt, nullptr);
+        if (rc == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(stmt) == SQLITE_ROW)
+                tt.total_seconds = sqlite3_column_int64(stmt, 0);
+            sqlite3_finalize(stmt);
+        }
+    }
+
+    // Join count + most recent join
+    {
+        sqlite3_stmt* stmt = nullptr;
+        int rc = sqlite3_prepare_v2(db_,
+            "SELECT COUNT(*), MAX(created_at) FROM gamelog_join_leave "
+            "WHERE user_id = ? AND type = 'join'",
+            -1, &stmt, nullptr);
+        if (rc == SQLITE_OK) {
+            sqlite3_bind_text(stmt, 1, user_id.c_str(), -1, SQLITE_TRANSIENT);
+            if (sqlite3_step(stmt) == SQLITE_ROW) {
+                tt.join_count = sqlite3_column_int(stmt, 0);
+                tt.last_join_at = ColText(stmt, 1);
+            }
+            sqlite3_finalize(stmt);
+        }
+    }
+
+    return tt;
 }
 
 } // namespace YipOS

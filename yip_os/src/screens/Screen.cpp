@@ -9,6 +9,9 @@
 #include "VRCXScreen.hpp"
 #include "VRCXWorldsScreen.hpp"
 #include "VRCXWorldDetailScreen.hpp"
+#include "VRCXFeedScreen.hpp"
+#include "VRCXFeedDetailScreen.hpp"
+#include "VRCXFriendDetailScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Glyphs.hpp"
@@ -104,6 +107,9 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
     if (name == "VRCX") return std::make_unique<VRCXScreen>(pda);
     if (name == "VRCX_WORLDS") return std::make_unique<VRCXWorldsScreen>(pda);
     if (name == "VRCX_WORLD_DETAIL") return std::make_unique<VRCXWorldDetailScreen>(pda);
+    if (name == "VRCX_FEED") return std::make_unique<VRCXFeedScreen>(pda);
+    if (name == "VRCX_FEED_DETAIL") return std::make_unique<VRCXFeedDetailScreen>(pda);
+    if (name == "VRCX_FRIEND_DETAIL") return std::make_unique<VRCXFriendDetailScreen>(pda);
     return nullptr;
 }
 

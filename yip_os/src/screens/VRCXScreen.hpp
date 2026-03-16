@@ -15,15 +15,17 @@ public:
 
 private:
     void WriteTile(int tx, int ty);
+    void WriteTileLine(int tx, int ty, const char* text, int row);
 
     struct Tile {
-        const char* label;
-        const char* screen_name; // nullptr = inactive
+        const char* line1;
+        const char* line2;         // nullptr = single-row label
+        const char* screen_name;   // nullptr = inactive
     };
 
     static constexpr Tile TILES[2][3] = {
-        {{"WORLDS", "VRCX_WORLDS"}, {"FEED", nullptr}, {"STATUS", nullptr}},
-        {{"NOTIF", nullptr},        {"-----", nullptr}, {"-----", nullptr}},
+        {{"WORLD", "HIST", "VRCX_WORLDS"}, {"FRND", "FEED", "VRCX_FEED"}, {"STATUS", nullptr, nullptr}},
+        {{"NOTIF", nullptr, nullptr},       {"-----", nullptr, nullptr},   {"-----", nullptr, nullptr}},
     };
 
     static constexpr int BTN_COLS[3] = {4, 20, 36};

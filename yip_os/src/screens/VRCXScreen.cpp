@@ -34,22 +34,30 @@ void VRCXScreen::RenderDynamic() {
     RenderCursor();
 }
 
-void VRCXScreen::WriteTile(int tx, int ty) {
+void VRCXScreen::WriteTileLine(int tx, int ty, const char* text, int row) {
     auto& tile = TILES[ty][tx];
     bool is_active = tile.screen_name != nullptr;
     bool inverted = is_active && !tile_highlighted_[ty][tx];
 
-    int len = static_cast<int>(std::strlen(tile.label));
+    int len = static_cast<int>(std::strlen(text));
     int center = BTN_COLS[tx];
     int start_col = center - len / 2;
-    int row = ZONE_ROWS[ty];
 
     for (int i = 0; i < len; i++) {
         int c = start_col + i;
         if (c < 1 || c >= COLS - 1) continue;
-        int char_idx = static_cast<int>(tile.label[i]);
+        int char_idx = static_cast<int>(text[i]);
         if (inverted) char_idx += INVERT_OFFSET;
         display_.WriteChar(c, row, char_idx);
+    }
+}
+
+void VRCXScreen::WriteTile(int tx, int ty) {
+    auto& tile = TILES[ty][tx];
+    int row = ZONE_ROWS[ty];
+    WriteTileLine(tx, ty, tile.line1, row);
+    if (tile.line2) {
+        WriteTileLine(tx, ty, tile.line2, row + 1);
     }
 }
 

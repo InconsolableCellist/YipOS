@@ -39,6 +39,7 @@ void VRCXWorldDetailScreen::RenderContent() {
 
     // Row 1: World name (truncated to fit, 38 chars max)
     std::string wname = world_->world_name;
+    if (wname.empty()) wname = "(unknown)";
     int max_name = COLS - 2;
     if (static_cast<int>(wname.size()) > max_name) {
         wname = wname.substr(0, max_name);
