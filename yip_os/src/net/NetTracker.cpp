@@ -7,9 +7,12 @@
 #include <fstream>
 #include <sstream>
 #elif defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <winsock2.h>
-#include <iphlpapi.h>
 #include <ws2tcpip.h>
+#include <iphlpapi.h>
+#include <netioapi.h>
 #pragma comment(lib, "iphlpapi.lib")
 #endif
 
