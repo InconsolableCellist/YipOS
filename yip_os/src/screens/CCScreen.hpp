@@ -22,7 +22,7 @@ private:
 
     // Scrolling text buffer — 6 visible rows, each up to 38 chars
     std::vector<std::string> lines_;
-    static constexpr int VISIBLE_ROWS = 6;
+    static constexpr int VISIBLE_ROWS = 5; // rows 1-5, row 6 has CONF button
     static constexpr int LINE_WIDTH = 38; // COLS - 2 (borders)
 };
 

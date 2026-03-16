@@ -419,13 +419,14 @@ def layout_vrcx_friend_detail(buf):
 
 
 def layout_cc(buf):
-    """Closed Captions: frame + CONF button in status bar, no clock."""
+    """Closed Captions: frame + CONF button on row 6, status bar no clock."""
     buf.put_frame("CC")
-    # Status bar with CONF button instead of clock
+    # CONF button on row 6, right-aligned (touch 52)
+    buf.put_text(COLS - 1 - 4, 6, "CONF", inverted=True)
+    # Status bar without clock
     buf.put_glyph(0, 7, G_BL_CORNER)
-    for c in range(2, COLS - 5):
+    for c in range(2, COLS - 1):
         buf.put_glyph(c, 7, G_HLINE)
-    buf.put_text(COLS - 5, 7, "CONF", inverted=True)
     buf.put_glyph(COLS - 1, 7, G_BR_CORNER)
 
 

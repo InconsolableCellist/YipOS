@@ -7,6 +7,8 @@
 #include "core/Glyphs.hpp"
 #include "net/OSCManager.hpp"
 #include "net/VRCXData.hpp"
+#include "audio/AudioCapture.hpp"
+#include "audio/WhisperWorker.hpp"
 #include "screens/Screen.hpp"
 
 #include <glad/glad.h>
@@ -449,6 +451,110 @@ void UIManager::RenderConfigTab(PDAController& pda, Config& config) {
         VRCXData* vrcx = pda.GetVRCXData();
         if (vrcx && vrcx->IsOpen()) {
             vrcx->Close();
+        }
+    }
+
+    // --- CC (Closed Captions) ---
+    ImGui::Separator();
+    ImGui::Text("Closed Captions (CC)");
+    ImGui::TextDisabled("Live transcription via whisper.cpp + audio capture.");
+
+    auto* whisper = pda.GetWhisperWorker();
+    auto* audio = pda.GetAudioCapture();
+
+    if (whisper && audio) {
+        // Model status
+        if (whisper->IsModelLoaded()) {
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Model: %s", whisper->GetModelName().c_str());
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Model: not loaded");
+        }
+
+        // Model loading buttons
+        if (ImGui::Button("Load tiny.en")) {
+            whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en"));
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Load base.en")) {
+            whisper->LoadModel(WhisperWorker::DefaultModelPath("base.en"));
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled("Place models in config/models/");
+
+        // Audio device selection
+        ImGui::Text("Audio Device:");
+        {
+            static std::vector<AudioDevice> devices;
+            static int selected_idx = 0;
+            if (ImGui::Button("Refresh Devices")) {
+                devices = audio->GetDevices();
+                selected_idx = 0;
+            }
+            if (!devices.empty()) {
+                // Build combo items
+                static std::string combo_preview;
+                if (selected_idx < static_cast<int>(devices.size()))
+                    combo_preview = devices[selected_idx].name;
+                else
+                    combo_preview = "Select...";
+
+                if (ImGui::BeginCombo("##cc_device", combo_preview.c_str())) {
+                    for (int i = 0; i < static_cast<int>(devices.size()); i++) {
+                        bool is_selected = (i == selected_idx);
+                        if (ImGui::Selectable(devices[i].name.c_str(), is_selected)) {
+                            selected_idx = i;
+                            audio->SetDevice(devices[i].id);
+                        }
+                        if (is_selected) ImGui::SetItemDefaultFocus();
+                    }
+                    ImGui::EndCombo();
+                }
+            } else {
+                ImGui::TextDisabled("Click 'Refresh Devices' to enumerate");
+            }
+        }
+
+        ImGui::Text("Current: %s", audio->GetCurrentDeviceName().c_str());
+
+        // Status
+        bool capturing = audio->IsRunning();
+        bool transcribing = whisper->IsRunning();
+        if (transcribing) {
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Status: LISTENING");
+        } else if (whisper->IsModelLoaded()) {
+            ImGui::Text("Status: Ready");
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Status: No model");
+        }
+
+        if (capturing) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.2f, 0.8f, 1.0f, 1.0f), " | Audio: CAPTURING");
+        }
+
+        // Start/Stop
+        if (!transcribing) {
+            if (ImGui::Button("Start CC")) {
+                if (!whisper->IsModelLoaded()) {
+                    whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en"));
+                }
+                if (whisper->IsModelLoaded()) {
+                    audio->Start();
+                    whisper->Start(audio->GetBuffer());
+                }
+            }
+        } else {
+            if (ImGui::Button("Stop CC")) {
+                whisper->Stop();
+                audio->Stop();
+            }
+        }
+
+        // Latest text preview
+        std::string latest = whisper->PeekLatest();
+        if (!latest.empty()) {
+            ImGui::Separator();
+            ImGui::TextWrapped("Latest: %s", latest.c_str());
         }
     }
 

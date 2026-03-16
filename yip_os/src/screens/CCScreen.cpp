@@ -17,13 +17,15 @@ void CCScreen::Render() {
     RenderFrame("CC");
     RenderLines();
 
-    // Status bar with CONF button (touch 53) instead of clock
+    // CONF button on row 6 (touch 52 area), right-aligned
+    WriteInverted(COLS - 1 - 4, 6, "CONF");
+
+    // Normal status bar on row 7 (no clock for speed)
     display_.WriteGlyph(0, 7, G_BL_CORNER);
     RenderCursor();
-    for (int c = 2; c < COLS - 5; c++) {
+    for (int c = 2; c < COLS - 1; c++) {
         display_.WriteGlyph(c, 7, G_HLINE);
     }
-    WriteInverted(COLS - 5, 7, "CONF");
     display_.WriteGlyph(COLS - 1, 7, G_BR_CORNER);
 }
 
@@ -119,8 +121,8 @@ void CCScreen::WrapAndAppend(const std::string& text) {
 }
 
 bool CCScreen::OnInput(const std::string& key) {
-    // Touch 53 → CONF button
-    if (key == "53") {
+    // Touch 52 → CONF button (row 6, right side)
+    if (key == "52") {
         pda_.SetPendingNavigate("CC_CONF");
         return true;
     }
