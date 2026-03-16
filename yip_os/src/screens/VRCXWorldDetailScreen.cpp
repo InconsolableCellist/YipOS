@@ -71,29 +71,33 @@ void VRCXWorldDetailScreen::RenderContent() {
     }
     d.WriteText(1, 3, "Time: " + dur);
 
-    // Row 4: Group name (if any)
+    // Row 4: Timestamp + group name
+    std::string ts = world_->created_at;
+    if (ts.size() > 16) ts = ts.substr(0, 16); // "2026-03-15 12:34"
     if (!world_->group_name.empty()) {
         std::string gname = world_->group_name;
-        int max_g = COLS - 2 - 7; // "Group: " prefix
+        int max_g = COLS - 2 - static_cast<int>(ts.size()) - 1;
         if (static_cast<int>(gname.size()) > max_g) {
             gname = gname.substr(0, max_g);
         }
-        d.WriteText(1, 4, "Group: " + gname);
+        d.WriteText(1, 4, ts + " " + gname);
+    } else {
+        d.WriteText(1, 4, ts);
     }
 
-    // Row 5: Timestamp
-    // created_at is typically "2026-03-15 12:34:56" — show date + time
-    std::string ts = world_->created_at;
-    if (ts.size() > 16) ts = ts.substr(0, 16); // "2026-03-15 12:34"
-    d.WriteText(1, 5, ts);
-
-    // Row 6: REJOIN button (inverted, right-aligned at TR position)
-    std::string rejoin = "REJOIN";
-    int rejoin_col = COLS - 1 - static_cast<int>(rejoin.size());
-    for (int i = 0; i < static_cast<int>(rejoin.size()); i++) {
-        int ch = static_cast<int>(rejoin[i]) + INVERT_OFFSET;
-        d.WriteChar(rejoin_col + i, 6, ch);
-    }
+    // Rows 5-6: REJOIN button (inverted, right-aligned near touch 53)
+    auto writeInverted = [&](int col, int row, const std::string& text) {
+        for (int i = 0; i < static_cast<int>(text.size()); i++) {
+            int ch = static_cast<int>(text[i]) + INVERT_OFFSET;
+            d.WriteChar(col + i, row, ch);
+        }
+    };
+    std::string rej1 = "REJOIN";
+    std::string rej2 = "(OPN BRWSR)";
+    int col1 = COLS - 1 - static_cast<int>(rej1.size());
+    int col2 = COLS - 1 - static_cast<int>(rej2.size());
+    writeInverted(col1, 5, rej1);
+    writeInverted(col2, 6, rej2);
 }
 
 std::string VRCXWorldDetailScreen::ParseInstanceType(const std::string& location) {
@@ -169,21 +173,25 @@ bool VRCXWorldDetailScreen::OnInput(const std::string& key) {
 
     Logger::Info("WORLD detail: REJOIN " + world_->world_name);
 
-    // Flash: un-invert REJOIN, then re-invert — all buffered so writes drain visibly
-    std::string rejoin = "REJOIN";
-    int rejoin_col = COLS - 1 - static_cast<int>(rejoin.size());
+    // Flash: un-invert both rows, then re-invert — all buffered so writes drain visibly
+    std::string r1 = "REJOIN";
+    std::string r2 = "(OPN BRWSR)";
+    int c1 = COLS - 1 - static_cast<int>(r1.size());
+    int c2 = COLS - 1 - static_cast<int>(r2.size());
 
     display_.CancelBuffered();
     display_.BeginBuffered();
 
     // Un-invert (flash off)
-    for (int i = 0; i < static_cast<int>(rejoin.size()); i++) {
-        display_.WriteChar(rejoin_col + i, 6, static_cast<int>(rejoin[i]));
-    }
+    for (int i = 0; i < static_cast<int>(r1.size()); i++)
+        display_.WriteChar(c1 + i, 5, static_cast<int>(r1[i]));
+    for (int i = 0; i < static_cast<int>(r2.size()); i++)
+        display_.WriteChar(c2 + i, 6, static_cast<int>(r2[i]));
     // Re-invert (flash on)
-    for (int i = 0; i < static_cast<int>(rejoin.size()); i++) {
-        display_.WriteChar(rejoin_col + i, 6, static_cast<int>(rejoin[i]) + INVERT_OFFSET);
-    }
+    for (int i = 0; i < static_cast<int>(r1.size()); i++)
+        display_.WriteChar(c1 + i, 5, static_cast<int>(r1[i]) + INVERT_OFFSET);
+    for (int i = 0; i < static_cast<int>(r2.size()); i++)
+        display_.WriteChar(c2 + i, 6, static_cast<int>(r2[i]) + INVERT_OFFSET);
 
     LaunchWorld(world_->location);
     return true;

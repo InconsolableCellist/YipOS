@@ -66,21 +66,19 @@ void VRCXWorldsScreen::RenderRow(int i, bool selected) {
         wname = wname.substr(0, name_max);
     }
 
-    // Compact line: "name dur" — no gap padding, saves write cycles
-    std::string line = wname + " " + dur;
+    // First 3 chars inverted = selection indicator, rest always plain
+    static constexpr int SEL_WIDTH = 3;
 
-    if (selected) {
-        for (int c = 0; c < static_cast<int>(line.size()); c++) {
-            int ch = static_cast<int>(line[c]) + INVERT_OFFSET;
-            d.WriteChar(1 + c, row, ch);
-        }
-    } else {
-        // WriteChar directly to ensure inverted chars are overwritten
-        // (WriteText skips spaces that appear unchanged in screen buffer)
-        for (int c = 0; c < static_cast<int>(line.size()); c++) {
-            d.WriteChar(1 + c, row, static_cast<int>(line[c]));
-        }
+    // Write name (first 3 chars may be inverted)
+    for (int c = 0; c < static_cast<int>(wname.size()); c++) {
+        int ch = static_cast<int>(wname[c]);
+        if (selected && c < SEL_WIDTH) ch += INVERT_OFFSET;
+        d.WriteChar(1 + c, row, ch);
     }
+
+    // Duration right-justified
+    int dur_col = COLS - 1 - dur_len;
+    d.WriteText(dur_col, row, dur);
 }
 
 void VRCXWorldsScreen::RenderRows() {
@@ -149,25 +147,13 @@ std::string VRCXWorldsScreen::FormatDuration(int64_t seconds) {
 bool VRCXWorldsScreen::OnInput(const std::string& key) {
     if (worlds_.empty()) return false;
 
-    // Joystick: cycle cursor down, wrap within page, advance page at end
+    // Joystick: cycle cursor down, wrap to top of current page
     if (key == "Joystick") {
         int items = ItemCountOnPage();
         if (items == 0) return true;
         int old_cursor = cursor_;
-        cursor_++;
-        if (cursor_ >= items) {
-            // Advance page or wrap to first page — needs full re-render
-            if (page_ < PageCount() - 1) {
-                page_++;
-            } else {
-                page_ = 0;
-            }
-            cursor_ = 0;
-            pda_.StartRender(this);
-        } else {
-            // Same page — just update the two rows
-            RefreshCursorRows(old_cursor, cursor_);
-        }
+        cursor_ = (cursor_ + 1) % items;
+        RefreshCursorRows(old_cursor, cursor_);
         return true;
     }
 

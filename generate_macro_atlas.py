@@ -367,12 +367,13 @@ def layout_vrcx_worlds(buf):
 
 
 def layout_vrcx_world_detail(buf):
-    """VRCX World Detail: frame + REJOIN button + status bar."""
+    """VRCX World Detail: frame + REJOIN button (2 rows) + status bar."""
     buf.put_frame("WORLD")
-    # Row 6: REJOIN button (inverted, right-aligned near TR button position)
-    rejoin = "REJOIN"
-    rejoin_col = COLS - 1 - len(rejoin)
-    buf.put_text(rejoin_col, 6, rejoin, inverted=True)
+    # Rows 5-6: REJOIN button (inverted, right-aligned near touch 53)
+    r1 = "REJOIN"
+    r2 = "(OPN BRWSR)"
+    buf.put_text(COLS - 1 - len(r1), 5, r1, inverted=True)
+    buf.put_text(COLS - 1 - len(r2), 6, r2, inverted=True)
     buf.put_status_bar()
 
 
