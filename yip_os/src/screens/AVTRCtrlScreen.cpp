@@ -12,6 +12,31 @@ namespace YipOS {
 
 using namespace Glyphs;
 
+// Strip VRCFury prefix from param names for display
+// Handles both "VF###/Path/Toggle" and "VF###_Path/Toggle" patterns
+// For underscore variant like "VF127_Accessories/PDA/Enable", strips up to first '/'
+static std::string StripVFPrefix(const std::string& name) {
+    if (name.size() >= 4 && name[0] == 'V' && name[1] == 'F') {
+        size_t i = 2;
+        while (i < name.size() && name[i] >= '0' && name[i] <= '9') i++;
+        if (i > 2 && i < name.size()) {
+            if (name[i] == '/') {
+                return name.substr(i + 1);
+            }
+            if (name[i] == '_') {
+                // VF###_Category/Sub/Name → strip to after first '/'
+                size_t slash = name.find('/', i + 1);
+                if (slash != std::string::npos) {
+                    return name.substr(slash + 1);
+                }
+                // No slash after underscore — just strip VF###_
+                return name.substr(i + 1);
+            }
+        }
+    }
+    return name;
+}
+
 AVTRCtrlScreen::AVTRCtrlScreen(PDAController& pda) : Screen(pda) {
     name = "CTRL";
     macro_index = 19;
@@ -62,7 +87,7 @@ void AVTRCtrlScreen::RenderRow(int i, bool selected) {
     // Format: "+ParamName" or "-ParamName"
     char indicator = t.on ? '+' : '-';
     int content_width = COLS - 2;
-    std::string pname = t.param->name;
+    std::string pname = StripVFPrefix(t.param->name);
     if (static_cast<int>(pname.size()) > content_width - 1) {
         pname = pname.substr(0, content_width - 1);
     }
@@ -105,7 +130,7 @@ void AVTRCtrlScreen::RenderPageIndicators() {
         int total = static_cast<int>(toggles_.size());
         char pos[12];
         std::snprintf(pos, sizeof(pos), "%d/%d", global_idx, total);
-        d.WriteText(3, 7, pos);
+        d.WriteText(5, 7, pos);
     }
 
     if (PageCount() <= 1) return;
@@ -165,8 +190,16 @@ bool AVTRCtrlScreen::OnInput(const std::string& key) {
 
             auto* osc = pda_.GetOSCManager();
             if (osc && t.param) {
-                osc->SendBool(t.param->input_address, t.on);
-                Logger::Info("Toggle " + t.param->name + " = " + (t.on ? "ON" : "OFF"));
+                // Send matching type — VRChat ignores mismatched OSC types
+                if (t.param->input_type == "Int") {
+                    osc->SendInt(t.param->input_address, t.on ? 1 : 0);
+                } else if (t.param->input_type == "Float") {
+                    osc->SendFloat(t.param->input_address, t.on ? 1.0f : 0.0f);
+                } else {
+                    osc->SendBool(t.param->input_address, t.on);
+                }
+                Logger::Info("Toggle " + t.param->name + " (" + t.param->input_type +
+                             ") = " + (t.on ? "ON" : "OFF"));
             }
 
             // Re-render just this row (keeps page position)

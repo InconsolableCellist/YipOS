@@ -27,8 +27,8 @@ struct TileLabel {
 // clang-format off
 constexpr TileLabel TILE_LABELS[TILE_ROWS][TILE_COLS] = {
     {{"STATS"}, {"NET"},   {"-----"}, {"SPVR"},  {"CONF"}},
-    {{"VRCX"},  {"HEART"}, {"-----"}, {"-----"}, {"-----"}},
-    {{"CC"},    {"AVTR"},  {"-----"}, {"-----"}, {"-----"}},
+    {{"VRCX"},  {"HEART"}, {"BFI"},   {"DBG"},   {"-----"}},
+    {{"CC"},    {"AVTR"},  {"-----"}, {"-----"}, {"LOCK"}},
 };
 // clang-format on
 
@@ -96,6 +96,7 @@ constexpr uint8_t G_WIFI       = 140;
 constexpr uint8_t G_CHECK      = 141;
 constexpr uint8_t G_XMARK      = 142;
 constexpr uint8_t G_TRACKER    = 143;
+constexpr uint8_t G_LOCK_INV   = 144;
 
 // Boot macro glyph index
 constexpr int BOOT_MACRO_INDEX = 5;

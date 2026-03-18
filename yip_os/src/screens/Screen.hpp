@@ -29,6 +29,7 @@ public:
     void RenderStatusBar();
     void RenderClock();
     void RenderCursor();
+    void RenderStatusIcons();
 
 protected:
     PDAController& pda_;

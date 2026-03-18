@@ -145,15 +145,6 @@ void NetScreen::RenderGraphFull() {
 }
 
 void NetScreen::Update() {
-    // During clearing (interface switch), wait for buffer to drain
-    if (clearing_) {
-        if (!display_.IsBuffered()) {
-            clearing_ = false;
-            display_.WriteGlyph(2, 7, G_HLINE);
-        }
-        return;
-    }
-
     auto& t = pda_.GetNetTracker();
 
     // Clear old label at write position before overwriting
@@ -163,7 +154,12 @@ void NetScreen::Update() {
 
     // Detect scale change — mark the triggering column
     if (scale_ != prev_scale_) {
-        scale_label_idx_ = std::min(scale_label_idx_ + 1, MAX_LABEL);
+        if (scale_ < prev_scale_) {
+            // Scale decreased (old peaks cleared) — reset label sequence
+            scale_label_idx_ = 0;
+        } else {
+            scale_label_idx_ = std::min(scale_label_idx_ + 1, MAX_LABEL);
+        }
         char label = SCALE_LABELS[scale_label_idx_];
         column_labels_[write_pos_] = label;
     }
@@ -199,14 +195,8 @@ bool NetScreen::OnInput(const std::string& key) {
         prev_scale_ = 1024.0;
         scale_label_idx_ = 0;
 
-        // Redraw everything with new interface — "C" indicator first in buffer
-        // so it's the first thing drawn after input processing
-        clearing_ = true;
-        display_.BeginBuffered();
-        display_.WriteChar(2, 7, static_cast<int>('C'));
-        RenderInfoLine();
-        RenderScaleBar();
-        RenderGraphFull();
+        // Full re-render via macro stamp
+        pda_.StartRender(this);
         Logger::Info("Net interface cycled to: " + t.iface);
         return true;
     }

@@ -117,7 +117,7 @@ void VRCXWorldsScreen::RenderPageIndicators() {
         int total = static_cast<int>(worlds_.size());
         char pos[12];
         std::snprintf(pos, sizeof(pos), "%d/%d", global_idx, total);
-        d.WriteText(3, 7, pos);
+        d.WriteText(5, 7, pos);
     }
 
     if (PageCount() <= 1) return;

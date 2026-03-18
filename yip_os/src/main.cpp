@@ -160,6 +160,36 @@ int main(int argc, char* argv[]) {
             if (address.find("CRT_Wrist_") != std::string::npos) {
                 pda.OnCRTInput(address, value);
             }
+            // Heart rate from VRCOSC / PulsoidToOSC / HRtoVRChat_OSC
+            {
+                auto pos = address.rfind('/');
+                if (pos != std::string::npos) {
+                    std::string param = address.substr(pos + 1);
+                    // Int params (0-255 raw BPM)
+                    if (param == "HR" || param == "Heartrate3" || param == "HeartRateInt") {
+                        int bpm = static_cast<int>(value);
+                        if (bpm > 0 && bpm < 256) pda.SetHeartRate(bpm);
+                    }
+                    // Float params (-1.0 to 1.0, maps to 0-255 BPM)
+                    else if (param == "Heartrate" || param == "HeartRateFloat" || param == "FullHRPercent") {
+                        int bpm = static_cast<int>((value + 1.0f) * 127.5f);
+                        if (bpm > 0 && bpm < 256) pda.SetHeartRate(bpm);
+                    }
+                }
+            }
+            // BFI (BrainFlowsIntoVRChat) params
+            {
+                auto bfi_pos = address.find("BFI/");
+                if (bfi_pos != std::string::npos) {
+                    std::string suffix = address.substr(bfi_pos + 4); // after "BFI/"
+                    for (int i = 0; i < YipOS::PDAController::BFI_PARAM_COUNT; i++) {
+                        if (suffix == YipOS::PDAController::BFI_PARAMS[i].osc_suffix) {
+                            pda.SetBFIParam(i, value);
+                            break;
+                        }
+                    }
+                }
+            }
             // SPVR device status updates
             if (address.find("SPVR_") != std::string::npos && address.find("_Status") != std::string::npos) {
                 int status = static_cast<int>(value);

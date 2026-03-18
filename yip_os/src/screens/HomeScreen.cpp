@@ -15,7 +15,7 @@ HomeScreen::HomeScreen(PDAController& pda) : Screen(pda) {
 }
 
 void HomeScreen::Render() {
-    RenderFrame("YIP-BOI OS");
+    RenderFrame("YIP OS");
     RenderContent();
     RenderStatusBar();
     Logger::Debug("Home screen rendered");

@@ -19,6 +19,7 @@
 #include <imgui_impl_opengl3.h>
 
 #include <cstdio>
+#include <cmath>
 #include <chrono>
 #include <algorithm>
 
@@ -193,6 +194,10 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
     }
 
     ImGui::End();
+
+    // Run auto-sim ticks outside of tab rendering so they keep running
+    // even when the OSC tab isn't visible
+    TickSimulations(pda);
 }
 
 void UIManager::EndFrame() {
@@ -219,7 +224,7 @@ void UIManager::RenderStatusTab(PDAController& pda, OSCManager& osc) {
     auto& display = pda.GetDisplay();
 
     // --- Header ---
-    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "YIP-BOI OS v1.0");
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "YIP OS v1.0");
     ImGui::SameLine();
     ImGui::TextDisabled("(C) Foxipso 2026");
     ImGui::TextDisabled("Enable the PDA and Williams Tube in VRChat to see the output!");
@@ -422,6 +427,33 @@ void UIManager::RenderOSCTab(PDAController& pda, Config& config, OSCManager& osc
         config.osc_ip = ip_buf;
         if (!config_path_.empty()) config.SaveToFile(config_path_);
     }
+
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Simulate OSC Input");
+    ImGui::TextDisabled("Inject values as if received from external apps (heart rate, BFI, etc.).");
+
+    // --- Heart Rate ---
+    ImGui::Spacing();
+    ImGui::Text("Heart Rate");
+    static int sim_hr_bpm = 75;
+    ImGui::SliderInt("BPM", &sim_hr_bpm, 40, 200);
+    ImGui::SameLine();
+    if (ImGui::Button("Send HR")) {
+        pda.SetHeartRate(sim_hr_bpm);
+    }
+    ImGui::Checkbox("Auto (1 Hz)", &sim_hr_auto_);
+    ImGui::SameLine();
+    ImGui::TextDisabled("Sends current slider value every second");
+    // Auto HR tick runs in TickSimulations() so it works when tab is hidden
+
+    // --- BFI ---
+    ImGui::Spacing();
+    ImGui::Text("BFI (BrainFlowsIntoVRChat) — %d params", PDAController::BFI_PARAM_COUNT);
+    ImGui::Checkbox("Auto BFI (1 Hz)", &sim_bfi_auto_);
+    ImGui::SameLine();
+    ImGui::TextDisabled("Sends sine waves to all %d params", PDAController::BFI_PARAM_COUNT);
+    // Auto BFI tick runs in TickSimulations()
 }
 
 // --- Display Tab ---
@@ -751,6 +783,46 @@ void UIManager::RenderLogTab() {
         ImGui::SetScrollHereY(1.0f);
     }
     ImGui::EndChild();
+}
+
+void UIManager::TickSimulations(PDAController& pda) {
+    double now = std::chrono::duration<double>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+
+    // Heart rate auto-sim
+    if (sim_hr_auto_) {
+        static double last_hr_send = 0;
+        if (now - last_hr_send >= 1.0) {
+            static int sim_hr_bpm = 75;
+            int jitter = (static_cast<int>(now * 7) % 7) - 3;
+            int bpm = std::clamp(sim_hr_bpm + jitter, 40, 200);
+            pda.SetHeartRate(bpm);
+            last_hr_send = now;
+        }
+    }
+
+    // BFI auto-sim
+    if (sim_bfi_auto_) {
+        static double last_bfi_send = 0;
+        static double bfi_start_time = 0;
+        if (bfi_start_time == 0) bfi_start_time = now;
+        if (now - last_bfi_send >= 1.0) {
+            double t = now - bfi_start_time;  // relative time, keeps sin args small
+            for (int i = 0; i < PDAController::BFI_PARAM_COUNT; i++) {
+                bool is_pos = PDAController::BFI_PARAMS[i].positive_only;
+                float lo = is_pos ? 0.0f : -1.0f;
+                float hi = 1.0f;
+                float mid = (hi + lo) * 0.5f;
+                float amp = (hi - lo) * 0.5f;
+                // 20-second full cycle, phase-shifted per param
+                float val = mid + amp * static_cast<float>(
+                    std::sin(t * (2.0 * 3.14159265358979 / 20.0) + i * 1.7));
+                val = std::clamp(val, lo, 1.0f);
+                pda.SetBFIParam(i, val);
+            }
+            last_bfi_send = now;
+        }
+    }
 }
 
 } // namespace YipOS

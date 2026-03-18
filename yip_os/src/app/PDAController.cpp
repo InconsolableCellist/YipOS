@@ -31,6 +31,7 @@ PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Confi
       refresh_interval_(refresh_interval) {
     // Default SPVR devices to unlocked (1) — matches in-game initial state
     for (auto& s : spvr_status_) s.store(1);
+    last_activity_ = MonotonicNow();
 
     // Push home screen as root
     auto home = std::make_unique<HomeScreen>(*this);
@@ -57,7 +58,7 @@ void PDAController::ResetRefresh() {
 
 float PDAController::GetRefreshInterval() const {
     Screen* s = GetCurrentScreen();
-    if (s && s->refresh_interval > 0) return s->refresh_interval;
+    if (s && s->refresh_interval != 0) return s->refresh_interval;  // negative = disabled, positive = override
     return refresh_interval_;
 }
 
@@ -152,7 +153,11 @@ void PDAController::ProcessInput() {
         if (MonotonicNow() >= navigate_time_) {
             std::string label = pending_navigate_;
             pending_navigate_.clear();
-            PushScreen(label);
+            if (label == "__POP__") {
+                PopScreen();
+            } else {
+                PushScreen(label);
+            }
         }
         return;
     }
@@ -169,12 +174,50 @@ void PDAController::ProcessInput() {
 
         last_input_ = param;
         last_input_time_ = MonotonicNow();
+        ResetAutolockTimer();
 
         // Strip CRT_Wrist_ prefix
         std::string key = param;
         const std::string prefix = "CRT_Wrist_";
         if (key.compare(0, prefix.size(), prefix) == 0) {
             key = key.substr(prefix.size());
+        }
+
+        // Soft lock: block all input except SEL (TR) x3 to unlock
+        if (soft_locked_) {
+            if (key == "TR") {
+                double now = MonotonicNow();
+                if (soft_lock_sel_count_ > 0 &&
+                    (now - soft_lock_last_sel_) > SOFT_LOCK_SEL_WINDOW) {
+                    soft_lock_sel_count_ = 0;
+                }
+                soft_lock_sel_count_++;
+                soft_lock_last_sel_ = now;
+                if (soft_lock_sel_count_ >= SOFT_LOCK_SEL_NEEDED) {
+                    soft_locked_ = false;
+                    soft_lock_sel_count_ = 0;
+                    Logger::Info("Soft lock disengaged");
+                    // Clear lock icon immediately
+                    display_.CancelBuffered();
+                    display_.BeginBuffered();
+                    display_.WriteGlyph(2, 7, G_HLINE);
+                }
+            } else {
+                // Wrong button — flash the lock icon
+                lock_flash_until_ = MonotonicNow() + LOCK_FLASH_DURATION;
+                // Immediately write flashed icon into buffer
+                display_.CancelBuffered();
+                display_.BeginBuffered();
+                display_.WriteChar(2, 7, G_LOCK_INV);
+            }
+            continue;
+        }
+
+        // When hard-locked, only route to the lock screen (no TL back)
+        if (locked_) {
+            Screen* current = GetCurrentScreen();
+            if (current) current->OnInput(key);
+            continue;
         }
 
         // TL = back (pop screen stack toward home)
@@ -222,7 +265,6 @@ bool PDAController::TickRefresh() {
 }
 
 void PDAController::MaybeUpdate() {
-    if (display_.IsBuffered()) return;
     Screen* s = GetCurrentScreen();
     if (!s || s->update_interval <= 0) return;
     double now = MonotonicNow();
@@ -265,6 +307,23 @@ void PDAController::UpdateClock() {
     // Refresh system stats at 1Hz (CPU needs two samples to compute delta)
     system_stats_->Update();
 
+    // Periodically check for new notifications (throttled to 30s)
+    RefreshNotifCache();
+
+    // Autolock check — engage soft lock (overlay, not screen push)
+    if (!locked_ && !soft_locked_ && !booting_) {
+        std::string autolock_str = config_.GetState("lock.autolock", "30");
+        int autolock_secs = std::stoi(autolock_str);
+        if (autolock_secs > 0 && last_activity_ > 0) {
+            double elapsed = MonotonicNow() - last_activity_;
+            if (elapsed >= autolock_secs) {
+                Logger::Info("Soft lock engaged after " + std::to_string(autolock_secs) + "s");
+                soft_locked_ = true;
+                soft_lock_sel_count_ = 0;
+            }
+        }
+    }
+
     // Skip clock/cursor writes on screens that manage their own updates
     // (e.g. CC screen uses the full display for rolling text)
     Screen* s = GetCurrentScreen();
@@ -281,6 +340,22 @@ void PDAController::UpdateClock() {
     std::string clock_str = ss.str();
     int col = COLS - 1 - static_cast<int>(clock_str.size());
     display_.WriteText(col, 7, clock_str);
+
+    // Status icons at cols 2-3
+    // Col 2: lock indicator
+    if (soft_locked_) {
+        bool flashing = IsLockFlashing();
+        int glyph = flashing ? (G_LOCK_INV) : G_LOCK;
+        display_.WriteChar(2, 7, glyph);
+    } else {
+        display_.WriteGlyph(2, 7, G_HLINE);
+    }
+    // Col 3: notification indicator
+    if (has_unseen_notifs_) {
+        display_.WriteGlyph(3, 7, G_BULLET);
+    } else {
+        display_.WriteGlyph(3, 7, G_HLINE);
+    }
 }
 
 void PDAController::ToggleCursor() {
@@ -336,6 +411,7 @@ void PDAController::RunBootSequence() {
     Logger::Info("Boot sequence complete");
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     booting_ = false;
+    ResetAutolockTimer();
 }
 
 void PDAController::Reboot() {
@@ -369,11 +445,63 @@ void PDAController::MarkNotifsSeen() {
     if (!notifs.empty()) {
         config_.SetState("notif.last_seen", notifs[0].created_at);
     }
+    has_unseen_notifs_ = false;
 }
 
 void PDAController::ClearAllNotifs() {
     // Mark all current notifs as seen
     MarkNotifsSeen();
+    has_unseen_notifs_ = false;
+}
+
+void PDAController::SetHeartRate(int bpm) {
+    hr_bpm_.store(bpm);
+    hr_last_update_.store(MonotonicNow());
+}
+
+bool PDAController::HasHeartRate() const {
+    double last = hr_last_update_.load();
+    if (last <= 0) return false;
+    return (MonotonicNow() - last) < HR_TIMEOUT;
+}
+
+void PDAController::SetBFIParam(int index, float value) {
+    if (index >= 0 && index < BFI_PARAM_COUNT) {
+        bfi_values_[index].store(value);
+        bfi_last_update_.store(MonotonicNow());
+    }
+}
+
+float PDAController::GetBFIParam(int index) const {
+    if (index >= 0 && index < BFI_PARAM_COUNT) {
+        return bfi_values_[index].load();
+    }
+    return 0.0f;
+}
+
+bool PDAController::HasBFIData() const {
+    double last = bfi_last_update_.load();
+    if (last <= 0) return false;
+    return (MonotonicNow() - last) < BFI_TIMEOUT;
+}
+
+void PDAController::SetLocked(bool locked) {
+    locked_ = locked;
+}
+
+bool PDAController::IsLockFlashing() const {
+    return MonotonicNow() < lock_flash_until_;
+}
+
+void PDAController::ResetAutolockTimer() {
+    last_activity_ = MonotonicNow();
+}
+
+void PDAController::RefreshNotifCache() {
+    double now = MonotonicNow();
+    if (now - last_notif_check_ < NOTIF_CHECK_INTERVAL) return;
+    last_notif_check_ = now;
+    has_unseen_notifs_ = HasUnseenNotifs();
 }
 
 } // namespace YipOS

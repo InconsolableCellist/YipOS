@@ -46,6 +46,7 @@ private:
     void RenderLogTab();
 
     void HandleKeyboardShortcuts(PDAController& pda);
+    void TickSimulations(PDAController& pda);
 
     GLFWwindow* window_ = nullptr;
 
@@ -65,6 +66,10 @@ private:
     // Avatar config UI state
     std::array<char, 512> avtr_path_buf_ = {};
     bool avtr_path_initialized_ = false;
+
+    // Simulation state (ticked every frame, even when OSC tab hidden)
+    bool sim_hr_auto_ = false;
+    bool sim_bfi_auto_ = false;
 
     // Window size
     int initial_width_ = 720;

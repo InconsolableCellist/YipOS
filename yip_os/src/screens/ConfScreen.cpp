@@ -102,8 +102,8 @@ ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
 
     // === Page 2 (macro slot 7) ===
     // Row 1: REFR, NAV, REBOOT
-    settings_.push_back({"REFR", "", {"1S", "5S", "10S", "30S"},
-                         {1.0f, 5.0f, 10.0f, 30.0f}, 0, false});
+    settings_.push_back({"REFR", "", {"OFF", "5S", "10S", "30S"},
+                         {0.0f, 5.0f, 10.0f, 30.0f}, 0, false});
     {
         auto& s = settings_.back();
         float ri = config.refresh_interval;
@@ -111,6 +111,21 @@ ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
         float best_dist = 999;
         for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
             float d = std::abs(s.values[i] - ri);
+            if (d < best_dist) { best_dist = d; best = i; }
+        }
+        s.current = best;
+    }
+
+    settings_.push_back({"ALOCK", "lock.autolock", {"OFF", "10S", "30S", "1M"},
+                         {0.0f, 10.0f, 30.0f, 60.0f}, 0, false});
+    {
+        auto& s = settings_.back();
+        std::string saved = config.GetState("lock.autolock", "30");
+        float val = std::stof(saved);
+        int best = 0;
+        float best_dist = 999;
+        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
+            float d = std::abs(s.values[i] - val);
             if (d < best_dist) { best_dist = d; best = i; }
         }
         s.current = best;
@@ -190,7 +205,7 @@ void ConfScreen::RenderPageIndicators() {
     // Page indicator "n/x" on row 7 after spinner (col 3)
     char pg[8];
     std::snprintf(pg, sizeof(pg), "%d/%d", page_ + 1, PageCount());
-    d.WriteText(3, 7, pg);
+    d.WriteText(5, 7, pg);
 }
 
 std::string ConfScreen::PadValue(const std::string& value) {
@@ -274,6 +289,12 @@ void ConfScreen::ApplySetting(int setting_idx) {
         config.refresh_interval = val;
         config.SaveToFile(config.config_path);
         Logger::Info("Refresh interval: " + std::to_string(static_cast<int>(val)) + "s");
+    }
+    else if (s.label == "ALOCK") {
+        float val = s.values[s.current];
+        config.SetState("lock.autolock", std::to_string(static_cast<int>(val)));
+        pda_.ResetAutolockTimer();
+        Logger::Info("Autolock: " + s.presets[s.current]);
     }
 }
 

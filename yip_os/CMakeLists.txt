@@ -94,6 +94,9 @@ set(YIPOS_SOURCES
     src/screens/AVTRDetailScreen.cpp
     src/screens/AVTRCtrlScreen.cpp
     src/screens/VRCXNotifScreen.cpp
+    src/screens/LockScreen.cpp
+    src/screens/BFIScreen.cpp
+    src/screens/BFIParamScreen.cpp
     src/net/VRCAvatarData.cpp
     src/audio/AudioCapture.cpp
     src/audio/WhisperWorker.cpp

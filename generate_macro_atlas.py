@@ -102,8 +102,8 @@ TILE_COLS = 5
 TILE_ROWS = 3
 TILE_LABELS = [
     ["STATS", "NET", "-TRACK", "SPVR", "CONF"],
-    ["VRCX", "HEART", "-MAP", "-DBG", "-----"],
-    ["CC", "AVTR", "-----", "-----", "-----"],
+    ["VRCX", "HEART", "BFI", "DBG", "-----"],
+    ["CC", "AVTR", "-----", "-----", "LOCK"],
 ]
 CHARS_PER_TILE = COLS // TILE_COLS  # 8
 # Column centers for even spacing across 40 cols (contact grid alignment)
@@ -211,7 +211,7 @@ class MacroScreenBuffer:
 
 def layout_home(buf):
     """Home screen: borders + title + tile labels."""
-    buf.put_frame("YIP-BOI OS")
+    buf.put_frame("YIP OS")
 
     # Tile labels at zone-center rows, centered on contact grid columns.
     # Active tiles are rendered inverted to indicate they are touchable.
@@ -471,6 +471,10 @@ def _layout_conf_page(buf, title, labels_row1, labels_row2):
 
     buf.put_status_bar()
 
+    # Version on bottom bar (overwrites center of hline)
+    ver = "YIP OS 1.0"
+    buf.put_text((COLS - len(ver)) // 2, 7, ver)
+
 
 def layout_conf_p1(buf):
     """Config page 1: BOOT/WRITE/SETTL + LOG/DBNCE/NVRAM."""
@@ -480,9 +484,9 @@ def layout_conf_p1(buf):
 
 
 def layout_conf_p2(buf):
-    """Config page 2: REFR/REBOOT."""
+    """Config page 2: REFR/ALOCK/REBOOT."""
     _layout_conf_page(buf, "CONFIG 2/2",
-                      ["REFR", "REBOOT"],
+                      ["REFR", "ALOCK", "REBOOT"],
                       [])
 
 
@@ -496,7 +500,7 @@ def layout_boot(buf):
     logo = "[FOX LOGO]"
     buf.put_text((COLS - len(logo)) // 2, 1, logo)
     # Row 2: title
-    title = "YIP-BOI OS V1.0"
+    title = "YIP OS V1.0"
     buf.put_text((COLS - len(title)) // 2, 2, title)
     # Row 3: copyright
     copy = "(C) FOXIPSO 2026"
@@ -570,6 +574,36 @@ def layout_vrcx_notif(buf):
     buf.put_status_bar()
 
 
+def layout_lock(buf):
+    """Lock screen: LOCKED indicator + unlock instructions."""
+    buf.put_frame("LOCKED")
+    # Row 2: lock icon + LOCKED
+    buf.put_glyph(16, 2, G_LOCK)
+    buf.put_text(18, 2, "LOCKED")
+    # Row 4: unlock instruction
+    buf.put_text(7, 4, "PRESS SEL x3 TO UNLOCK")
+    buf.put_status_bar()
+
+
+def layout_bfi(buf):
+    """BFI main graph: frame + scale labels + CONF button."""
+    buf.put_frame("BFIVRC")
+    # Scale labels
+    buf.put_text(1, 1, " 1.0")
+    buf.put_text(1, 3, " 0.0")
+    buf.put_text(1, 5, "-1.0")
+    # CONF button (inverted, touch 53 area)
+    buf.put_text(35, 6, "CONF", inverted=True)
+    buf.put_status_bar()
+
+
+def layout_bfi_param(buf):
+    """BFI Param picker: frame + status bar."""
+    buf.put_frame("BFI PARAM")
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    buf.put_status_bar()
+
+
 SCREEN_LAYOUTS = {
     0: ("HOME", layout_home),
     1: ("STATS", layout_stats),
@@ -592,6 +626,9 @@ SCREEN_LAYOUTS = {
     18: ("AVTR DTL", layout_avtr_detail),
     19: ("CTRL", layout_avtr_ctrl),
     20: ("NOTIF", layout_vrcx_notif),
+    21: ("LOCK", layout_lock),
+    22: ("BFI", layout_bfi),
+    23: ("BFI PARAM", layout_bfi_param),
 }
 
 

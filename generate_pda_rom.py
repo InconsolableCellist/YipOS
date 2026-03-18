@@ -32,7 +32,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 COPY_DEST_DIR = os.path.join(
     os.path.expanduser("~"),
     "Documents/unity/3d/unity/Rexipso Dark Test 1/"
-    "Assets/Foxipso/Assets/Williams Tube/Textures",
+    "Assets/Foxipso/Assets/Yip-Boi/Williams Tube/Textures",
 )
 
 
@@ -398,8 +398,11 @@ def build_custom_icons():
         0x18, 0x18, 0x18, 0x00,
     ]
 
-    # 144-159: reserved (blank for now — can add more icons later)
-    for i in range(144, 160):
+    # 144: inverted lock (same bitmap as 133, rendered inverted)
+    icons[144] = icons[133][:]
+
+    # 145-159: reserved (blank for now — can add more icons later)
+    for i in range(145, 160):
         icons[i] = [0x00] * 16
 
     return icons
@@ -465,11 +468,16 @@ def main():
             render_glyph(atlas, cp437[code], col, row)
 
     # --- Indices 128-159: custom PDA icons ---
+    # Icons that should be rendered inverted (fg/bg swapped)
+    inverted_icons = {144}
     print("Rendering indices 128-159 (custom icons)...")
     for pda_idx, bitmap in icons.items():
         col = pda_idx % GRID_COLS
         row = pda_idx // GRID_COLS
-        render_glyph(atlas, bitmap, col, row)
+        if pda_idx in inverted_icons:
+            render_inverted_glyph(atlas, bitmap, col, row)
+        else:
+            render_glyph(atlas, bitmap, col, row)
 
     # --- Indices 160-255: inverted ASCII (mirrors 32-127) ---
     print("Rendering indices 160-255 (inverted ASCII)...")

@@ -5,9 +5,9 @@
 
 namespace YipOS {
 
-class HeartScreen : public Screen {
+class BFIScreen : public Screen {
 public:
-    HeartScreen(PDAController& pda);
+    BFIScreen(PDAController& pda);
 
     void Render() override;
     void RenderDynamic() override;
@@ -23,28 +23,25 @@ private:
 
     static constexpr int GRAPH_LEFT = 5;
     static constexpr int GRAPH_RIGHT = 38;
-    static constexpr int GRAPH_TOP = 2;
-    static constexpr int GRAPH_BOTTOM = 6;
+    static constexpr int GRAPH_TOP = 1;
+    static constexpr int GRAPH_BOTTOM = 5;
     static constexpr int GRAPH_WIDTH = GRAPH_RIGHT - GRAPH_LEFT + 1;   // 34
     static constexpr int GRAPH_HEIGHT = GRAPH_BOTTOM - GRAPH_TOP + 1;  // 5
     static constexpr int GRAPH_LEVELS = GRAPH_HEIGHT * 2;              // 10
 
-    int bpm_ = 0;
-    int bpm_hi_ = 0;
-    int bpm_lo_ = 999;
-    int bpm_sum_ = 0;
-    int bpm_count_ = 0;
-    bool heart_on_ = true;
-    bool has_data_ = false;
+    // Which BFI param to display (index into BFI_PARAM_NAMES)
+    int param_idx_ = 2;  // FocusAvg
+    int prev_param_idx_ = -1;  // track changes for info line refresh
 
-    // Auto-scaling (like NetScreen)
-    int scale_hi_ = 100;   // top of graph
-    int scale_lo_ = 60;    // bottom of graph
-    int prev_scale_hi_ = 100;
-    int prev_scale_lo_ = 60;
+    // Scale (fixed, derived from selected param)
+    float scale_hi_ = 1.0f;
+    float scale_lo_ = -1.0f;
 
-    std::vector<int> graph_data_;
+    // Circular buffer for trace
+    std::vector<float> trace_;
+    std::vector<int> dot_rows_;  // cached dot row per column (-1 = none)
     int write_pos_ = 0;
+    bool has_data_ = false;
 };
 
 } // namespace YipOS

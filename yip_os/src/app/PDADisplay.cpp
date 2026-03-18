@@ -162,8 +162,10 @@ void PDADisplay::ClearScreen() {
 }
 
 void PDADisplay::BeginBuffered() {
+    if (!buffered_) {
+        write_queue_.clear();
+    }
     buffered_ = true;
-    write_queue_.clear();
 }
 
 bool PDADisplay::FlushOne() {

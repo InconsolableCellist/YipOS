@@ -41,7 +41,6 @@ private:
     double prev_scale_ = 1024.0;
     int scale_label_idx_ = 0;
     std::vector<char> column_labels_;  // label char per graph column (0 = none)
-    bool clearing_ = false;
 };
 
 } // namespace YipOS

@@ -19,6 +19,9 @@
 #include "AVTRDetailScreen.hpp"
 #include "AVTRCtrlScreen.hpp"
 #include "VRCXNotifScreen.hpp"
+#include "LockScreen.hpp"
+#include "BFIScreen.hpp"
+#include "BFIParamScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Glyphs.hpp"
@@ -81,8 +84,9 @@ void Screen::RenderStatusBar() {
 
     display_.WriteGlyph(0, 7, G_BL_CORNER);
     RenderCursor();
+    RenderStatusIcons();
     int time_start = COLS - 1 - static_cast<int>(clock_str.size());
-    for (int c = 2; c < time_start; c++) {
+    for (int c = 4; c < time_start; c++) {
         display_.WriteGlyph(c, 7, G_HLINE);
     }
     display_.WriteText(time_start, 7, clock_str);
@@ -97,6 +101,24 @@ void Screen::RenderClock() {
     std::string clock_str = ss.str();
     int col = COLS - 1 - static_cast<int>(clock_str.size());
     display_.WriteText(col, 7, clock_str);
+    RenderStatusIcons();
+}
+
+void Screen::RenderStatusIcons() {
+    // Col 2: lock indicator when soft-locked
+    if (pda_.IsSoftLocked()) {
+        bool flashing = pda_.IsLockFlashing();
+        int glyph = flashing ? (G_LOCK_INV) : G_LOCK;
+        display_.WriteChar(2, 7, glyph);
+    } else {
+        display_.WriteGlyph(2, 7, G_HLINE);
+    }
+    // Col 3: notification indicator
+    if (pda_.HasUnseenNotifsCached()) {
+        display_.WriteGlyph(3, 7, G_BULLET);
+    } else {
+        display_.WriteGlyph(3, 7, G_HLINE);
+    }
 }
 
 void Screen::RenderCursor() {
@@ -124,6 +146,9 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
     if (name == "AVTR_DETAIL") return std::make_unique<AVTRDetailScreen>(pda);
     if (name == "AVTR_CTRL") return std::make_unique<AVTRCtrlScreen>(pda);
     if (name == "VRCX_NOTIF") return std::make_unique<VRCXNotifScreen>(pda);
+    if (name == "LOCK") return std::make_unique<LockScreen>(pda);
+    if (name == "BFI") return std::make_unique<BFIScreen>(pda);
+    if (name == "BFI_PARAM") return std::make_unique<BFIParamScreen>(pda);
     return nullptr;
 }
 

@@ -19,7 +19,7 @@ struct Config {
     // [timing]
     float write_delay = 0.07f;
     float settle_delay = 0.04f;
-    float refresh_interval = 0.0f;
+    float refresh_interval = 30.0f;
 
     // [startup]
     bool boot_animation = true;
