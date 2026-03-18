@@ -1,0 +1,113 @@
+% Williams Tube System Diagram
+% Standalone TikZ figure — \input{williams_tube_diagram} from manual.tex
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  x=1cm, y=1cm,
+  >=latex,
+  annot/.style={font=\scriptsize\ttfamily, darkgreen, align=center},
+  component/.style={draw=darkgreen, thick, fill=screenbg!30, rounded corners=1pt},
+  oscparam/.style={font=\tiny\ttfamily, orange!70!black},
+]
+
+% === WILLIAMS TUBE PREFAB ENCLOSURE ===
+% Background rectangle enclosing camera, write head, deflection, and screen
+\fill[screenbg!6] (-1.0, -2.5) rectangle (10.0, 2.8);
+\draw[darkgreen!70, very thick, rounded corners=4pt]
+  (-1.0, -2.5) rectangle (10.0, 2.8);
+\node[font=\scriptsize\ttfamily\bfseries, darkgreen, anchor=north west]
+  at (-0.85, 2.65) {Williams Tube Prefab};
+
+% === CAMERA (far left) ===
+\node[component, minimum width=1.0cm, minimum height=1.4cm] (cam) at (0, 0) {};
+\draw[darkgreen, thick] (0, 0) circle (0.35);
+\draw[darkgreen, fill=darkgreen!30] (0, 0) circle (0.15);
+\node[annot, below=6pt] at (cam.south)
+  {Orthographic Camera\\[-1pt]\scriptsize Depth-Only \textbullet{} UiMenu};
+
+% === WRITE HEAD (middle, taller to fit params) ===
+\node[component, minimum width=2.0cm, minimum height=2.0cm] (head) at (5.0, 0) {};
+% Grid pattern to suggest glyph ROM
+\draw[darkgreen!30, thin] (4.2, 0.5) -- (5.8, 0.5);
+\draw[darkgreen!30, thin] (4.2, 0.0) -- (5.8, 0.0);
+\draw[darkgreen!30, thin] (4.2, -0.5) -- (5.8, -0.5);
+\draw[darkgreen!30, thin] (4.5, -0.85) -- (4.5, 0.85);
+\draw[darkgreen!30, thin] (5.0, -0.85) -- (5.0, 0.85);
+\draw[darkgreen!30, thin] (5.5, -0.85) -- (5.5, 0.85);
+% OSC params inside the write head
+\node[oscparam] at (5.0, 0.55) {WT\_CharLo};
+\node[oscparam] at (5.0, 0.15) {WT\_ScaleA};
+\node[oscparam] at (5.0, -0.25) {WT\_ScaleB};
+% Labels above and below
+\node[annot, above=8pt] at (head.north) {Write Head};
+\node[annot, below=8pt] at (head.south) {\scriptsize(Custom Shader)};
+
+% === Deflection plates around write head ===
+% Horizontal deflection (above/below)
+\fill[orange!20] (4.0, 1.6) rectangle (6.0, 1.8);
+\fill[orange!20] (4.0, -1.4) rectangle (6.0, -1.6);
+\draw[orange!60!black, thick] (4.0, 1.6) rectangle (6.0, 1.8);
+\draw[orange!60!black, thick] (4.0, -1.4) rectangle (6.0, -1.6);
+\node[oscparam, above=2pt] at (5.0, 1.8) {WT\_CursorX};
+
+% Vertical deflection (left/right)
+\fill[orange!20] (3.3, -0.6) rectangle (3.5, 0.6);
+\fill[orange!20] (6.5, -0.6) rectangle (6.7, 0.6);
+\draw[orange!60!black, thick] (3.3, -0.6) rectangle (3.5, 0.6);
+\draw[orange!60!black, thick] (6.5, -0.6) rectangle (6.7, 0.6);
+\node[oscparam, below=4pt] at (3.4, -1.6) {WT\_CursorY};
+
+% === SCREEN / Render Texture ===
+\fill[crtgreen!15, draw=darkgreen, thick]
+  (9.0, -2.2) rectangle (9.4, 2.2);
+\node[annot, below=3pt] at (9.2, -2.2) {Render\\[-1pt]Texture};
+
+% === Main beam: Camera → Write Head → Screen ===
+\draw[darkgreen, very thick, densely dotted] (0.5, 0) -- (3.3, 0);
+\draw[darkgreen, very thick, densely dotted] (6.7, 0) -- (9.0, 0);
+
+% === Impact point on screen ===
+\fill[crtgreen] (9.0, 0) circle (3pt);
+\foreach \a in {0,45,...,315} {
+  \draw[crtgreen, thick] (9.0, 0) -- ++(\a:0.18);
+}
+
+% === EYEBALL (right of screen, outside prefab) ===
+\node[font=\large\ttfamily, darkgreen] at (11.0, 0) {o\textgreater{}};
+\node[annot, below=2pt] at (11.0, -0.35) {User's\\[-1pt]Eyeball};
+% Viewing lines from screen to eye
+\draw[darkgreen!30, thin] (9.4, 1.2) -- (10.65, 0.1);
+\draw[darkgreen!30, thin] (9.4, 0) -- (10.65, 0);
+\draw[darkgreen!30, thin] (9.4, -1.2) -- (10.65, -0.1);
+
+% === OSC arrow entering from below (outside prefab) ===
+\draw[orange!60!black, ->, very thick] (5.0, -3.8) -- (5.0, -2.5);
+\node[annot, below] at (5.0, -3.8) {OSC Commands\\[-1pt]\scriptsize Yip OS $\rightarrow$ VRChat};
+
+% Dashed lines from OSC splitting to deflection plates (inside prefab)
+\draw[orange!40!black, dashed, ->] (4.2, -2.9) -| (3.4, -0.6);
+\draw[orange!40!black, dashed, ->] (5.8, -2.9) -| (6.6, -0.6);
+% Main OSC line continues into prefab
+\draw[orange!60!black, very thick, ->] (5.0, -2.5) -- (5.0, -1.6);
+
+% === LEGEND (bottom right, outside prefab) ===
+\node[anchor=north west, inner sep=0pt] at (8.0, -3.0) {
+  \begin{tikzpicture}[x=1cm, y=1cm]
+    \draw[darkgreen!60, thick, rounded corners=2pt] (-0.15, 0.15) rectangle (3.55, -1.35);
+    \node[font=\tiny\ttfamily\bfseries, darkgreen, anchor=west] at (0, 0) {LEGEND};
+    \draw[orange!60!black, thick] (0, -0.35) -- (0.5, -0.35);
+    \node[font=\tiny\ttfamily, anchor=west] at (0.6, -0.35) {OSC Parameter};
+    \draw[darkgreen, very thick, densely dotted] (0, -0.7) -- (0.5, -0.7);
+    \node[font=\tiny\ttfamily, anchor=west] at (0.6, -0.7) {Camera View Path};
+    \fill[crtgreen] (0.25, -1.05) circle (2pt);
+    \node[font=\tiny\ttfamily, anchor=west] at (0.6, -1.05) {Phosphor Impact};
+  \end{tikzpicture}
+};
+
+\end{tikzpicture}
+\caption{How the Williams Tube rendering pipeline works. OSC commands from the
+Yip~OS desktop app position the Write Head and select characters;
+an orthographic camera captures the result into a
+Render Texture that becomes the CRT display.}
+\label{fig:williams-tube}
+\end{figure}

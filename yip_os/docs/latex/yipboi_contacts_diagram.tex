@@ -1,0 +1,110 @@
+% Yip-Boi Contact Points Diagram
+% Standalone TikZ figure — \input{yipboi_contacts_diagram} from manual.tex
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  x=1cm, y=1cm,
+  >=latex,
+  annot/.style={font=\scriptsize\ttfamily, darkgreen, align=center},
+  contact/.style={circle, draw=orange!60!black, thick, fill=orange!25,
+    minimum size=8pt, inner sep=0pt},
+  button/.style={rounded corners=2pt, draw=darkgreen, thick, fill=darkgreen!15,
+    minimum width=0.9cm, minimum height=0.55cm,
+    font=\tiny\ttfamily\bfseries, darkgreen, align=center},
+  oscparam/.style={font=\tiny\ttfamily, orange!70!black},
+]
+
+% === DEVICE HOUSING ===
+\fill[screenbg!15, draw=darkgreen!70, very thick, rounded corners=6pt]
+  (-3.8, -3.0) rectangle (3.8, 3.0);
+\node[font=\scriptsize\ttfamily\bfseries, darkgreen, anchor=north]
+  at (0, 2.85) {YIP-BOI (Model YB-1)};
+
+% === CRT SCREEN (Render Texture) ===
+\fill[screenbg!60, draw=darkgreen, thick, rounded corners=2pt]
+  (-2.4, -2.0) rectangle (2.4, 2.2);
+% Screen label
+\node[font=\tiny\ttfamily, crtgreen] at (0, 2.0) {Render Texture};
+% Faint grid lines to suggest 40x8 character grid
+\foreach \x in {-1.6, -0.8, 0, 0.8, 1.6} {
+  \draw[darkgreen!15, very thin] (\x, -1.8) -- (\x, 1.8);
+}
+\foreach \y in {-1.2, -0.6, 0, 0.6, 1.2} {
+  \draw[darkgreen!15, very thin] (-2.2, \y) -- (2.2, \y);
+}
+
+% === TOUCHSCREEN ZONE GRID (3x3 = 9 touch buttons) ===
+% Draw zone boundaries on the screen
+\draw[orange!25, thick] (-2.2, 0.7) -- (2.2, 0.7);   % row divider 1-2
+\draw[orange!25, thick] (-2.2, -0.7) -- (2.2, -0.7);  % row divider 2-3
+\draw[orange!25, thick] (-0.8, -1.8) -- (-0.8, 1.8);  % col divider 1-2
+\draw[orange!25, thick] (0.8, -1.8) -- (0.8, 1.8);    % col divider 2-3
+
+% Zone center dots (9 touch buttons)
+\foreach \cx/\cy in {-1.5/1.25, 0/1.25, 1.5/1.25,
+                     -1.5/0, 0/0, 1.5/0,
+                     -1.5/-1.25, 0/-1.25, 1.5/-1.25} {
+  \node[contact] at (\cx, \cy) {};
+}
+
+% === 6 CONTACT SENDERS (hardware) at row endpoints ===
+% Small labels at the 6 physical sender positions
+\node[oscparam, left=3pt] at (-1.5, 1.25) {\_11};
+\node[oscparam, right=3pt] at (1.5, 1.25) {\_51};
+\node[oscparam, left=3pt] at (-1.5, 0) {\_12};
+\node[oscparam, right=3pt] at (1.5, 0) {\_52};
+\node[oscparam, left=3pt] at (-1.5, -1.25) {\_13};
+\node[oscparam, right=3pt] at (1.5, -1.25) {\_53};
+
+% === 5 PHYSICAL BUTTON CONTACT SENDERS ===
+% Left side buttons
+\node[button] (back) at (-3.2, 1.8) {BACK};
+\node[button] (pgup) at (-3.2, 0.2) {PGUP};
+\node[button] (pgdn) at (-3.2, -1.4) {PGDN};
+% Right side buttons
+\node[button] (sel) at (3.2, 1.8) {SEL};
+\node[button] (joy) at (3.2, -1.4) {JOY};
+
+% Button contact names
+\node[oscparam, left=2pt, align=right] at (back.west) {CRT\_Wrist\\TL};
+\node[oscparam, left=2pt, align=right] at (pgup.west) {CRT\_Wrist\\ML};
+\node[oscparam, left=2pt, align=right] at (pgdn.west) {CRT\_Wrist\\BL};
+\node[oscparam, right=2pt, align=left] at (sel.east) {CRT\_Wrist\\TR};
+\node[oscparam, right=2pt, align=left] at (joy.east) {CRT\_Wrist\\Joystick};
+
+% === OSC OUTPUT ARROW ===
+\draw[orange!60!black, ->, very thick] (0, -3.0) -- (0, -4.0);
+\node[annot, below] at (0, -4.0) {OSC Out\\[-1pt]\scriptsize VRChat $\rightarrow$ Yip OS};
+
+% Dashed lines from contacts to OSC output
+\draw[orange!40!black, dashed, thin] (-1.0, -2.0) -- (-0.3, -3.0);
+\draw[orange!40!black, dashed, thin] (1.0, -2.0) -- (0.3, -3.0);
+
+% === RENDER TEXTURE INPUT ARROW ===
+\draw[darkgreen, ->, very thick] (0, 3.8) -- (0, 3.0);
+\node[annot, above] at (0, 3.8) {Render Texture\\[-1pt]\scriptsize from Williams Tube (Fig.~\ref{fig:williams-tube})};
+
+% === LEGEND ===
+\node[anchor=north west, inner sep=0pt] at (4.8, 2.5) {
+  \begin{tikzpicture}[x=1cm, y=1cm]
+    \draw[darkgreen!60, thick, rounded corners=2pt] (-0.15, 0.15) rectangle (3.0, -1.75);
+    \node[font=\tiny\ttfamily\bfseries, darkgreen, anchor=west] at (0, 0) {LEGEND};
+    \node[contact, scale=0.8] at (0.25, -0.4) {};
+    \node[font=\tiny\ttfamily, anchor=west] at (0.55, -0.4) {Touch Contact};
+    \node[button, scale=0.7, minimum width=0.5cm, minimum height=0.3cm] at (0.2, -0.8) {};
+    \node[font=\tiny\ttfamily, anchor=west] at (0.55, -0.8) {Physical Button};
+    \draw[orange!60!black, thick] (0, -1.2) -- (0.5, -1.2);
+    \node[font=\tiny\ttfamily, anchor=west] at (0.55, -1.2) {OSC Output};
+    \draw[darkgreen, thick, ->] (0, -1.55) -- (0.5, -1.55);
+    \node[font=\tiny\ttfamily, anchor=west] at (0.55, -1.55) {Render Input};
+  \end{tikzpicture}
+};
+
+\end{tikzpicture}
+\caption{The Yip-Boi PDA and its contact points. Nine touchscreen zones
+(3$\times$3 grid) are defined by six Contact Senders (\texttt{CRT\_Wrist\_XY});
+five physical button contacts detect button presses. All contacts send OSC data
+to the Yip~OS companion app. The CRT display is fed by the Render Texture
+produced by the Williams Tube (Fig.~\ref{fig:williams-tube}).}
+\label{fig:yipboi-contacts}
+\end{figure}
