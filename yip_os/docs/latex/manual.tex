@@ -769,13 +769,13 @@ An OSC application that reads your VRChat cached avatars and OSC config and allo
 
 The AVTR hub provides two functions:
 
-\textbf{CHANGE} --- Browse and switch between your cached avatars.
+\textbf{CHANGE} --- Browse and switch between your cached avatars. The list shows all avatars that VRChat has cached OSC data for, not just your favorites. Note that VRChat only allows switching to \textbf{favorited} avatars via OSC --- if the avatar is not in your favorites, the change will be silently ignored.
 
 \manualfig[0.55\textwidth]{AVTR_CHANGE.png}{Avatar selection list. Use \key{JOYSTICK} to cycle, \key{SEL} to view details.}
 
 \manualfig[0.55\textwidth]{AVTR_DETAIL.png}{Avatar detail view --- press \key{SEL} to switch to this avatar.}
 
-\textbf{CTRL} --- View and toggle parameters on your current avatar.
+\textbf{CTRL} --- View and toggle parameters on your current avatar. The toggle list is populated from your avatar's radial menu parameters (via LocalAvatarData), so it shows all expression parameters --- not just simple on/off toggles. Parameters that are not Bool toggles may not respond as expected.
 
 \manualfig[0.55\textwidth]{AVTR_CTRL.png}{Toggle controls for the current avatar. Tap inverted labels to toggle.}
 

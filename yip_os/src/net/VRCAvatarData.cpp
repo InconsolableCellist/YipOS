@@ -224,6 +224,19 @@ bool VRCAvatarData::IsExcludedParam(const std::string& name) {
     return false;
 }
 
+// Detect nested VRCFury prefix: "VF<digits>_VF<digits>_..."
+// These are internal wrappers whose OSC addresses VRChat ignores;
+// the single-prefix version (VF<digits>_...) is the functional one.
+static bool IsNestedVFPrefix(const std::string& name) {
+    if (name.size() < 6 || name[0] != 'V' || name[1] != 'F') return false;
+    size_t i = 2;
+    while (i < name.size() && name[i] >= '0' && name[i] <= '9') i++;
+    if (i == 2 || i >= name.size() || name[i] != '_') return false;
+    i++; // skip '_'
+    if (i + 2 >= name.size() || name[i] != 'V' || name[i + 1] != 'F') return false;
+    return true;
+}
+
 std::vector<const VRCAvatarParam*> VRCAvatarData::GetToggleParams(const std::string& avatar_id) const {
     std::vector<const VRCAvatarParam*> result;
     const VRCAvatarEntry* avatar = FindById(avatar_id);
@@ -234,6 +247,10 @@ std::vector<const VRCAvatarParam*> VRCAvatarData::GetToggleParams(const std::str
     for (auto& p : avatar->parameters) {
         // Must have input address
         if (p.input_address.empty()) continue;
+
+        // Skip nested VRCFury wrappers (VF##_VF##_...) — VRChat only
+        // responds to the single-prefix version (VF##_...).
+        if (IsNestedVFPrefix(p.name)) continue;
 
         if (have_expression_params) {
             // Whitelist: only show params from LocalAvatarData (radial menu)

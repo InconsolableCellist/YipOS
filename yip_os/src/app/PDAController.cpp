@@ -219,11 +219,14 @@ void PDAController::ProcessInput() {
                     display_.WriteGlyph(2, 7, G_HLINE);
                 }
             } else {
-                // Wrong button — flash the lock icon
+                // Wrong button — flash the lock icon and re-render the
+                // current screen so VRC display artifacts get cleared.
                 lock_flash_until_ = MonotonicNow() + LOCK_FLASH_DURATION;
-                // Immediately write flashed icon into buffer
-                display_.CancelBuffered();
-                display_.BeginBuffered();
+                Screen* current = GetCurrentScreen();
+                if (current) {
+                    StartRender(current);
+                }
+                // Write flashed lock icon on top of the freshly rendered screen
                 display_.WriteChar(2, 7, G_LOCK_INV);
             }
             continue;
@@ -307,6 +310,10 @@ void PDAController::MaybeRefresh() {
     double now = MonotonicNow();
     if (now - last_refresh_ >= interval) {
         Logger::Debug("Refreshing " + screen->name);
+
+        // Clear the render texture first so VRC UI artifacts / garbled
+        // pixels are wiped, matching what StartRender() does on entry.
+        display_.ClearScreen();
 
         if (screen->macro_index >= 0) {
             display_.SetMacroMode();

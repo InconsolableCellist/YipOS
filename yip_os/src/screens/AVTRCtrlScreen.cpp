@@ -190,16 +190,14 @@ bool AVTRCtrlScreen::OnInput(const std::string& key) {
 
             auto* osc = pda_.GetOSCManager();
             if (osc && t.param) {
-                // Send matching type — VRChat ignores mismatched OSC types
-                if (t.param->input_type == "Int") {
-                    osc->SendInt(t.param->input_address, t.on ? 1 : 0);
-                } else if (t.param->input_type == "Float") {
-                    osc->SendFloat(t.param->input_address, t.on ? 1.0f : 0.0f);
-                } else {
-                    osc->SendBool(t.param->input_address, t.on);
-                }
-                Logger::Info("Toggle " + t.param->name + " (" + t.param->input_type +
-                             ") = " + (t.on ? "ON" : "OFF"));
+                // Always send as Bool + Int for maximum VRChat compatibility.
+                // VRCFury and some animator setups ignore OSC Bool (T/F) type
+                // tags but respond to Int 0/1.  Sending both covers all cases.
+                osc->SendBool(t.param->input_address, t.on);
+                osc->SendInt(t.param->input_address, t.on ? 1 : 0);
+                Logger::Info("Toggle " + t.param->name + " -> " +
+                             t.param->input_address + " = " +
+                             (t.on ? "ON" : "OFF"));
             }
 
             // Re-render just this row (keeps page position)
