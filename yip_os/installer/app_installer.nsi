@@ -123,8 +123,6 @@ Section "Install"
 
     ; Assets
     SetOutPath "$INSTDIR\assets"
-    File "..\assets\WilliamsTube_MacroAtlas.png"
-    File /nonfatal "..\assets\WilliamsTube_MacroAtlas_boot2.png"
     File /nonfatal "..\assets\vq_codebook.npy"
 
     ; Default images for IMG screen
@@ -160,8 +158,6 @@ Section "Uninstall"
     ; Remove application files
     Delete "$INSTDIR\yip_os.exe"
     Delete "$INSTDIR\uninstall.exe"
-    Delete "$INSTDIR\assets\WilliamsTube_MacroAtlas.png"
-    Delete "$INSTDIR\assets\WilliamsTube_MacroAtlas_boot2.png"
     Delete "$INSTDIR\assets\vq_codebook.npy"
     RMDir /r "$INSTDIR\assets\images"
     RMDir "$INSTDIR\assets"
