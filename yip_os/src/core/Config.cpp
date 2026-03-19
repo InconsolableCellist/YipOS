@@ -41,6 +41,7 @@ bool Config::LoadFromFile(const std::string& path) {
     osc_ip          = reader.Get("osc", "ip", osc_ip);
     osc_send_port   = reader.GetInteger("osc", "send_port", osc_send_port);
     osc_listen_port = reader.GetInteger("osc", "listen_port", osc_listen_port);
+    osc_query_enabled = reader.GetBoolean("osc", "query_enabled", osc_query_enabled);
 
     y_offset = static_cast<float>(reader.GetReal("display", "y_offset", y_offset));
     y_scale  = static_cast<float>(reader.GetReal("display", "y_scale", y_scale));
@@ -120,6 +121,7 @@ bool Config::SaveToFile(const std::string& path) const {
     f << "ip = " << osc_ip << "\n";
     f << "send_port = " << osc_send_port << "\n";
     f << "listen_port = " << osc_listen_port << "\n";
+    f << "query_enabled = " << (osc_query_enabled ? "true" : "false") << "\n";
     f << "\n";
 
     f << "[display]\n";

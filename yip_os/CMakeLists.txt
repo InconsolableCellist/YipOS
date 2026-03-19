@@ -79,6 +79,7 @@ set(YIPOS_SOURCES
     src/screens/CalibrateScreen.cpp
     src/screens/ConfScreen.cpp
     src/net/OSCManager.cpp
+    src/net/OSCQueryServer.cpp
     src/net/NetTracker.cpp
     src/net/VRCXData.cpp
     src/screens/VRCXScreen.cpp

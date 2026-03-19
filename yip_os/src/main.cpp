@@ -2,6 +2,7 @@
 #include <atomic>
 #include <chrono>
 #include <iostream>
+#include <memory>
 
 #include "core/Platform.hpp"
 #include "core/PathUtils.hpp"
@@ -12,6 +13,7 @@
 #include "app/PDADisplay.hpp"
 #include "app/PDAController.hpp"
 #include "net/OSCManager.hpp"
+#include "net/OSCQueryServer.hpp"
 #include "net/NetTracker.hpp"
 #include "net/VRCXData.hpp"
 #include "net/VRCAvatarData.hpp"
@@ -83,6 +85,34 @@ int main(int argc, char* argv[]) {
         YipOS::OSCManager osc;
         if (!osc.Initialize(config.osc_ip, config.osc_send_port, config.osc_listen_port)) {
             YipOS::Logger::Error("Failed to initialize OSC — continuing without it");
+        }
+
+        // OSC Query (mDNS service discovery + HTTP parameter tree)
+        std::unique_ptr<YipOS::OSCQueryServer> osc_query;
+        if (config.osc_query_enabled) {
+            osc_query = std::make_unique<YipOS::OSCQueryServer>();
+
+            // Register parameters we send (write from our perspective)
+            using A = YipOS::OSCQueryServer::Access;
+            osc_query->AddParameter("/avatar/parameters/WT_CursorX", "f", A::WriteOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/WT_CursorY", "f", A::WriteOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/WT_CharLo", "i", A::WriteOnly, 0);
+            osc_query->AddParameter("/avatar/parameters/WT_CharHi", "i", A::WriteOnly, 0);
+            osc_query->AddParameter("/avatar/parameters/WT_ScaleA", "T", A::WriteOnly, false);
+            osc_query->AddParameter("/avatar/parameters/WT_ScaleB", "T", A::WriteOnly, false);
+
+            // Register parameters we receive (read from our perspective)
+            osc_query->AddParameter("/avatar/parameters/CRT_Wrist_TL", "f", A::ReadOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/CRT_Wrist_TR", "f", A::ReadOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/CRT_Wrist_ML", "f", A::ReadOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/CRT_Wrist_MR", "f", A::ReadOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/CRT_Wrist_BL", "f", A::ReadOnly, 0.0f);
+            osc_query->AddParameter("/avatar/parameters/CRT_Wrist_BR", "f", A::ReadOnly, 0.0f);
+
+            if (!osc_query->Start(osc.GetListenPort())) {
+                YipOS::Logger::Warning("OSCQuery failed to start — continuing with static OSC ports");
+                osc_query.reset();
+            }
         }
 
         // Core PDA objects
@@ -245,6 +275,7 @@ int main(int argc, char* argv[]) {
 
         YipOS::Logger::Info("Entering main loop");
         double last_clock = 0;
+        int last_vrc_osc_port = 0; // track discovered port to avoid repeated updates
 
         while (!ui.ShouldClose() && g_running) {
             // Handle reboot request from UI
@@ -270,6 +301,14 @@ int main(int argc, char* argv[]) {
                     pda.UpdateClock();
                     pda.ToggleCursor();
                     net_tracker.Sample();
+                    // Update OSC send target if OSCQuery discovered VRChat
+                    if (osc_query) {
+                        auto port = osc_query->GetVRChatOSCPort();
+                        if (port && *port != last_vrc_osc_port) {
+                            osc.SetSendTarget("127.0.0.1", *port);
+                            last_vrc_osc_port = *port;
+                        }
+                    }
                     last_clock = now;
                 }
 
@@ -295,6 +334,7 @@ int main(int argc, char* argv[]) {
         whisper_worker.Stop();
         audio_capture->Stop();
         ui.Shutdown();
+        if (osc_query) osc_query->Stop();
         osc.Shutdown();
         config.SaveToFile(configPath);
         YipOS::Logger::Info("YipOS exiting normally");

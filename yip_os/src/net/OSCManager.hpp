@@ -38,6 +38,10 @@ public:
 
     void SetInputHandler(InputHandler handler);
 
+    // Dynamic port update (for OSCQuery discovery)
+    void SetSendTarget(const std::string& address, int port);
+    int GetListenPort() const { return listen_port_; }
+
     bool IsRunning() const { return running_.load(); }
 
     // Chatbox text received from external apps
@@ -59,6 +63,8 @@ private:
     socket_t send_socket_ = INVALID_SOCK;
     socket_t recv_socket_ = INVALID_SOCK;
     void* server_addr_ = nullptr; // sockaddr_in*, allocated in Initialize
+    mutable std::mutex send_mutex_; // protects server_addr_ updates
+    int listen_port_ = 0;
     std::thread recv_thread_;
     std::atomic<bool> running_{false};
     InputHandler input_handler_;

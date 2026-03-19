@@ -10,6 +10,7 @@ struct Config {
     std::string osc_ip = "127.0.0.1";
     int osc_send_port = 9000;
     int osc_listen_port = 9001;
+    bool osc_query_enabled = true;
 
     // [display]
     float y_offset = 0.0f;

@@ -111,6 +111,7 @@ bool OSCManager::Initialize(const std::string& address, int send_port, int liste
     setsockopt(recv_socket_, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
 #endif
 
+    listen_port_ = listen_port;
     running_ = true;
     recv_thread_ = std::thread(&OSCManager::ReceiveThread, this);
 
@@ -133,6 +134,16 @@ void OSCManager::Shutdown() {
     WSACleanup();
 #endif
     Logger::Info("OSC shutdown");
+}
+
+void OSCManager::SetSendTarget(const std::string& address, int port) {
+    std::lock_guard<std::mutex> lock(send_mutex_);
+    if (server_addr_) {
+        auto* sa = Addr(server_addr_);
+        sa->sin_port = htons(static_cast<uint16_t>(port));
+        inet_pton(AF_INET, address.c_str(), &sa->sin_addr);
+        Logger::Info("OSC send target updated: " + address + ":" + std::to_string(port));
+    }
 }
 
 void OSCManager::SendFloat(const std::string& path, float value) {
