@@ -514,8 +514,11 @@ void UIManager::RenderDisplayTab(PDAController& pda, Config& config) {
     ImGui::Text("Y Calibration");
     ImGui::TextDisabled("Adjusts vertical positioning of text on the CRT display.");
     ImGui::SliderFloat("Y Offset", &config.y_offset, -0.5f, 0.5f);
+    ImGui::SameLine(); if (ImGui::SmallButton("Reset##yoff")) config.y_offset = 0.0f;
     ImGui::SliderFloat("Y Scale", &config.y_scale, 0.1f, 2.0f);
+    ImGui::SameLine(); if (ImGui::SmallButton("Reset##yscl")) config.y_scale = 1.0f;
     ImGui::SliderFloat("Y Curve", &config.y_curve, 0.1f, 3.0f);
+    ImGui::SameLine(); if (ImGui::SmallButton("Reset##ycur")) config.y_curve = 1.0f;
 
     ImGui::Separator();
 

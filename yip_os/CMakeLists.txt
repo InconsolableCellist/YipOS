@@ -172,7 +172,10 @@ target_link_libraries(yip_os PRIVATE
 )
 
 if(UNIX)
-    target_link_libraries(yip_os PRIVATE pthread dl)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(PULSE REQUIRED libpulse-simple libpulse)
+    target_include_directories(yip_os PRIVATE ${PULSE_INCLUDE_DIRS})
+    target_link_libraries(yip_os PRIVATE pthread dl ${PULSE_LIBRARIES})
 elseif(WIN32)
     target_link_libraries(yip_os PRIVATE ws2_32 iphlpapi windowsapp)
 endif()
