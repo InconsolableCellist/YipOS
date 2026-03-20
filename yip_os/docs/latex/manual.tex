@@ -723,7 +723,7 @@ Setting labels are inverted (touchable). Tap to cycle through values. Settings p
   \textbf{Parameter} & \textbf{Values} & \textbf{Description} \\
   \midrule
   BOOT & OFF / SLOW / NORM / FAST & Boot animation speed \\
-  WRITE & NORM / SLOW / FAST & Character write delay \\
+  WRITE & ULTR / FAST / NORM / SLOW & Character write delay \\
   SETTLE & NORM / SLOW / FAST & Mode switch settle delay \\
   LOG & DBG / INFO / WARN / ERR & Log verbosity level \\
   DBNCE & NORM / LONG / SHRT & Touch debounce timing \\
@@ -781,7 +781,9 @@ A locally running, Whisper-based AI model that listens to your system audio or y
 
 \manualfig[0.55\textwidth]{CC.png}{CC program displaying live transcription. Text scrolls upward as new speech is detected.}
 
-The CC display shows the most recent transcription, scrolling older text upward. The transcription model runs entirely on your local machine using CPU inference --- no audio is sent to external servers.
+The CC display shows the most recent transcription, scrolling older text upward. The transcription model runs entirely on your local machine --- no audio is sent to external servers. Inference uses \textbf{Vulkan GPU acceleration} on NVIDIA and AMD GPUs, with automatic CPU fallback if no compatible GPU is available.
+
+Due to the CRT's ASCII-only character set, all transcription output is \textbf{automatically translated to English}. Non-English speech is translated in real time; English speech passes through unchanged. This means CC functions as both a captioning and a live translation tool.
 
 \subsubsection{Model Installation}
 
@@ -806,7 +808,7 @@ CC requires a GGML-format Whisper.cpp model. Download one from:
 }
 \end{center}
 
-The model file must be named \texttt{ggml-\textit{<model>}.bin} (e.g., \texttt{ggml-tiny.en.bin}). FBM recommends \textbf{tiny.en} or \textbf{base.en} --- these are small, fast, and English-optimized. Larger models are more accurate but significantly slower on CPU.
+The model file must be named \texttt{ggml-\textit{<model>}.bin} (e.g., \texttt{ggml-tiny.en.bin}). All installed models appear in a dropdown in the \textbf{CC tab} of the desktop app. FBM recommends \textbf{base.en} for English-only use, or a multilingual model such as \textbf{large-v3-turbo} for translation. With Vulkan GPU acceleration, even larger models run comfortably in real time.
 
 \manualfig[0.55\textwidth]{CC_CONF.png}{CC configuration screen --- select audio source and model size.}
 

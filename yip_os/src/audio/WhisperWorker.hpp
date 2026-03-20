@@ -35,10 +35,15 @@ public:
 
     // Configuration
     void SetLanguage(const std::string& lang) { language_ = lang; }
-    void SetChunkSeconds(int seconds) { chunk_seconds_ = std::max(2, std::min(seconds, 10)); }
+    std::string GetLanguage() const { return language_; }
+    void SetChunkSeconds(int seconds) { chunk_seconds_ = std::max(1, std::min(seconds, 10)); }
     int GetChunkSeconds() const { return chunk_seconds_; }
 
+    // Returns true if current model is multilingual (no ".en" suffix)
+    bool IsMultilingual() const;
+
     static std::string DefaultModelPath(const std::string& model_name = "tiny.en");
+    static std::vector<std::string> ScanAvailableModels();
 
 private:
     void ProcessLoop();

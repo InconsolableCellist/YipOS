@@ -25,6 +25,26 @@ std::string WhisperWorker::DefaultModelPath(const std::string& model_name) {
     return config_dir + "/models/ggml-" + model_name + ".bin";
 }
 
+std::vector<std::string> WhisperWorker::ScanAvailableModels() {
+    std::vector<std::string> models;
+    namespace fs = std::filesystem;
+    std::string models_dir = GetConfigDir() + "/models";
+    if (!fs::exists(models_dir)) return models;
+
+    for (auto& entry : fs::directory_iterator(models_dir)) {
+        if (!entry.is_regular_file()) continue;
+        std::string fname = entry.path().filename().string();
+        // Match ggml-*.bin
+        if (fname.size() > 9 && fname.substr(0, 5) == "ggml-" &&
+            fname.substr(fname.size() - 4) == ".bin") {
+            std::string name = fname.substr(5, fname.size() - 9); // strip ggml- and .bin
+            models.push_back(name);
+        }
+    }
+    std::sort(models.begin(), models.end());
+    return models;
+}
+
 bool WhisperWorker::LoadModel(const std::string& model_path) {
     if (ctx_) {
         whisper_free(ctx_);
@@ -51,8 +71,21 @@ bool WhisperWorker::LoadModel(const std::string& model_path) {
     if (fname.substr(0, 5) == "ggml-") fname = fname.substr(5);
     model_name_ = fname;
 
-    Logger::Info("CC: Model loaded: " + model_name_);
+    Logger::Info("CC: Model loaded: " + model_name_ +
+                 (IsMultilingual() ? " (multilingual)" : " (english-only)"));
+
+    // Force English output — multilingual models with "auto" may transcribe
+    // in the detected language, and turbo/distilled models may ignore the
+    // translate flag.  Setting language="en" + translate=true ensures
+    // English output regardless of model variant.
+    language_ = "en";
+
     return true;
+}
+
+bool WhisperWorker::IsMultilingual() const {
+    // English-only models have ".en" in the name (e.g. "tiny.en", "base.en")
+    return model_name_.find(".en") == std::string::npos && !model_name_.empty();
 }
 
 bool WhisperWorker::Start(AudioRingBuffer& buffer) {
@@ -103,6 +136,7 @@ static bool IsJunkText(const std::string& text) {
     static const char* junk_phrases[] = {
         "[BLANK_AUDIO]", "[SILENCE]", "[ Silence ]", "(silence)",
         "[Music]", "[music]", "(music)",
+        "[foreign language]", "(foreign language)",
         "you", "You", "Thank you.", "Thanks for watching!",
         "Bye.", "Bye!", "...",
     };
@@ -153,6 +187,7 @@ void WhisperWorker::ProcessLoop() {
         wparams.single_segment = false;
         wparams.no_context = true;
         wparams.language = language_.c_str();
+        wparams.translate = true; // translate all languages to English
         wparams.n_threads = 4;
 
         int result = whisper_full(ctx_, wparams, chunk.data(), static_cast<int>(chunk.size()));

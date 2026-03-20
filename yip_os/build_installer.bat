@@ -3,7 +3,7 @@ echo Building YipOS Release + Installer...
 
 REM Build the Release version first
 if not defined VSCMD_VER (
-    call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
+    call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat" -arch=amd64
 )
 cd /d %~dp0
 cmake -B build_win -G "Ninja" -DCMAKE_BUILD_TYPE=Release

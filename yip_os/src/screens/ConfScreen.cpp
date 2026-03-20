@@ -42,8 +42,8 @@ ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
         }
     }
 
-    settings_.push_back({"WRITE", "", {"FAST", "NORM", "SLOW"},
-                         {0.04f, 0.07f, 0.12f}, 0, false});
+    settings_.push_back({"WRITE", "", {"ULTR", "FAST", "NORM", "SLOW"},
+                         {0.02f, 0.04f, 0.07f, 0.12f}, 0, false});
     {
         auto& s = settings_.back();
         float wd = config.write_delay;

@@ -1,5 +1,6 @@
 #include "StockClient.hpp"
 #include "core/Logger.hpp"
+#define NOMINMAX
 #include <nlohmann/json.hpp>
 #include <curl/curl.h>
 #include <algorithm>

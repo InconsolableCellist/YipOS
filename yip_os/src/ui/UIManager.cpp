@@ -613,6 +613,8 @@ void UIManager::RenderCCTab(PDAController& pda, Config& config) {
     ImGui::Text("Closed Captions (CC)");
     ImGui::TextDisabled("Live speech-to-text using whisper.cpp. Transcription starts");
     ImGui::TextDisabled("automatically when you navigate to the CC screen in-game.");
+    ImGui::TextDisabled("Uses Vulkan GPU acceleration (NVIDIA/AMD) with CPU fallback.");
+    ImGui::TextDisabled("All output is translated to English (ASCII character set only).");
 
     ImGui::Separator();
 
@@ -633,16 +635,48 @@ void UIManager::RenderCCTab(PDAController& pda, Config& config) {
         }
     }
 
-    if (ImGui::Button("Load tiny.en")) {
-        if (whisper->LoadModel(WhisperWorker::DefaultModelPath("tiny.en")))
-            config.SetState("cc.model", whisper->GetModelName());
+    {
+        static std::vector<std::string> available_models;
+        static bool models_scanned = false;
+        if (!models_scanned) {
+            available_models = WhisperWorker::ScanAvailableModels();
+            models_scanned = true;
+        }
+
+        if (available_models.empty()) {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "No models found");
+        } else {
+            std::string preview = whisper->IsModelLoaded()
+                ? whisper->GetModelName() : "(select model)";
+            if (ImGui::BeginCombo("##cc_model", preview.c_str())) {
+                for (auto& m : available_models) {
+                    bool is_selected = (whisper->IsModelLoaded() && whisper->GetModelName() == m);
+                    if (ImGui::Selectable(m.c_str(), is_selected)) {
+                        if (whisper->LoadModel(WhisperWorker::DefaultModelPath(m)))
+                            config.SetState("cc.model", whisper->GetModelName());
+                    }
+                }
+                ImGui::EndCombo();
+            }
+        }
+        if (ImGui::Button("Rescan Models")) {
+            available_models = WhisperWorker::ScanAvailableModels();
+        }
+        ImGui::TextDisabled("Place ggml-*.bin files in your models folder.");
+        ImGui::SameLine();
+        ImGui::TextDisabled("(?)");
+        if (ImGui::IsItemHovered()) {
+            ImGui::BeginTooltip();
+#ifdef _WIN32
+            ImGui::Text("%%APPDATA%%\\yip_os\\models\\");
+            ImGui::TextDisabled("(e.g. C:\\Users\\<you>\\AppData\\Roaming\\yip_os\\models\\)");
+#else
+            ImGui::Text("~/.config/yip_os/models/");
+#endif
+            ImGui::TextDisabled("Download models from huggingface.co/ggerganov/whisper.cpp");
+            ImGui::EndTooltip();
+        }
     }
-    ImGui::SameLine();
-    if (ImGui::Button("Load base.en")) {
-        if (whisper->LoadModel(WhisperWorker::DefaultModelPath("base.en")))
-            config.SetState("cc.model", whisper->GetModelName());
-    }
-    ImGui::TextDisabled("Place ggml-*.bin files in your config/models/ folder.");
 
     ImGui::Separator();
 
@@ -707,7 +741,7 @@ void UIManager::RenderCCTab(PDAController& pda, Config& config) {
     // Window size
     ImGui::Text("Processing Window");
     int chunk_sec = whisper->GetChunkSeconds();
-    if (ImGui::SliderInt("Window (sec)", &chunk_sec, 2, 10)) {
+    if (ImGui::SliderInt("Window (sec)", &chunk_sec, 1, 10)) {
         whisper->SetChunkSeconds(chunk_sec);
         config.SetState("cc.window", std::to_string(chunk_sec));
     }

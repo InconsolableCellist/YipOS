@@ -13,7 +13,7 @@ using namespace Glyphs;
 CCScreen::CCScreen(PDAController& pda) : Screen(pda) {
     name = "CC";
     macro_index = 14;
-    update_interval = 0.5f;
+    update_interval = 0.25f; // faster tick for responsive captions
     skip_clock = true; // we own the full display, no clock writes
 
     // Auto-start CC on screen entry
@@ -95,6 +95,7 @@ bool CCScreen::FilterText(const std::string& text) const {
     if (text.find("[ Silence ]") != std::string::npos) return true;
     if (text.find("(silence)") != std::string::npos) return true;
     if (text.find("[Music]") != std::string::npos) return true;
+    if (text.find("[foreign language]") != std::string::npos) return true;
     bool has_alpha = false;
     for (char c : text) {
         if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) {
@@ -171,30 +172,31 @@ void CCScreen::Update() {
     // Nothing to write
     if (pending_lines_.empty()) return;
 
-    // Write one line per update tick (buffered)
+    // Write up to LINES_PER_TICK lines to keep up with fast dialog.
+    // With a 0.25s tick this allows ~12 lines/sec throughput.
     display_.BeginBuffered();
 
-    const std::string& line = pending_lines_.front();
+    int lines_written = 0;
+    while (!pending_lines_.empty() && lines_written < LINES_PER_TICK) {
+        const std::string& line = pending_lines_.front();
 
-    // Write text chars, then pad remainder with spaces to clear old content.
-    // This avoids wasting writes on blank columns before the text.
-    int col = LEFT_COL;
-    for (int i = 0; i < static_cast<int>(line.size()); i++) {
-        char ch = line[i];
-        int char_idx = (ch >= 32 && ch <= 126) ? static_cast<int>(ch) : 32;
-        display_.WriteChar(col++, cursor_row_, char_idx);
-    }
-    // Clear only the remaining columns after the text
-    while (col <= RIGHT_COL) {
-        display_.WriteChar(col++, cursor_row_, 32);
-    }
+        // Write text chars, then pad remainder with spaces to clear old content.
+        int col = LEFT_COL;
+        for (int i = 0; i < static_cast<int>(line.size()); i++) {
+            char ch = line[i];
+            int char_idx = (ch >= 32 && ch <= 126) ? static_cast<int>(ch) : 32;
+            display_.WriteChar(col++, cursor_row_, char_idx);
+        }
+        while (col <= RIGHT_COL) {
+            display_.WriteChar(col++, cursor_row_, 32);
+        }
 
-    // Line done — advance
-    pending_lines_.erase(pending_lines_.begin());
-    line_char_pos_ = 0;
-    cursor_row_++;
-    if (cursor_row_ > LAST_ROW) {
-        cursor_row_ = FIRST_ROW;
+        pending_lines_.erase(pending_lines_.begin());
+        cursor_row_++;
+        if (cursor_row_ > LAST_ROW) {
+            cursor_row_ = FIRST_ROW;
+        }
+        lines_written++;
     }
 }
 

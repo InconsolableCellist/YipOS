@@ -35,6 +35,7 @@ private:
     int line_char_pos_ = 0;
     static constexpr int LINE_WIDTH = 38;
     static constexpr size_t MAX_PENDING_LINES = 20;
+    static constexpr int LINES_PER_TICK = 3;
 
     bool started_by_screen_ = false; // we auto-started CC
 };
