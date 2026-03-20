@@ -30,7 +30,7 @@ Purchasing the Yip-Boi avatar prefab supports the development of my assets and c
 
 ## What Is It?
 
-Yip OS is a C++ application with a Dear ImGui interface that communicates with VRChat over OSC to drive the Yip-Boi's display and custom shader. It handles all the rendering logic, input processing, system monitoring, and program execution.
+Yip OS is a C++ application with a Dear ImGui interface that communicates with VRChat over OSC to drive the Yip-Boi's display and custom shader. It handles all the rendering logic, input processing, system monitoring, and program execution. The desktop companion application runs on both **Windows** and **Linux**.
 
 Anyone capable of writing code--or brow-beating an AI into doing it for you--can extend Yip OS, run a custom version, make their own programs, and submit pull requests.
 
@@ -129,11 +129,26 @@ For testing in Unity without uploading, see the [Operator's Manual](yip_os/docs/
 - CMake 3.15 or higher
 - Dependencies are fetched automatically via CMake (GLFW, Dear ImGui, whisper.cpp, etc.)
 
-### Build Steps
+### Windows
 ```bash
 cd yip_os
 cmake -B build
 cmake --build build --config Release
+```
+
+### Linux
+Requires development packages for OpenGL, libcurl, PulseAudio, and Vulkan:
+```bash
+# Fedora/RHEL
+sudo dnf install mesa-libGL-devel libcurl-devel pulseaudio-libs-devel vulkan-headers vulkan-loader-devel glslc
+
+# Ubuntu/Debian
+sudo apt install libgl-dev libcurl4-openssl-dev libpulse-dev libvulkan-dev glslc
+```
+```bash
+cd yip_os
+cmake -B build
+cmake --build build
 ```
 
 ### Asset Pipeline (Python)

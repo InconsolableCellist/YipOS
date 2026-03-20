@@ -1199,11 +1199,22 @@ The following timing diagram illustrates the sequence of synced parameter states
 \section{COMPANION SOFTWARE}
 \label{sec:companion}
 
-The Desktop Companion is a C++ application that runs on your PC and drives the Yip-Boi's display over OSC. It must be running whenever you want the PDA to function.
+The Desktop Companion is a C++ application that runs on your PC and drives the Yip-Boi's display over OSC. It must be running whenever you want the PDA to function. The companion application runs on both \textbf{Windows} and \textbf{Linux}.
 
 \subsection{Installation}
 
 Insert the Desktop Companion Software disk (3.5'' floppy) into your PC's disk drive. If your PC does not have a 3.5'' drive, the software is also available for download from your Foxipso dealer's BBS. Or from the new invention of the World Wide Web, at \url{https://github.com/InconsolableCellist/YipOS}.
+
+\subsubsection*{Linux}
+
+The companion application builds and runs natively on Linux. Audio capture (for the CC program) uses PulseAudio, which is also supported by PipeWire's compatibility layer. Vulkan is used for GPU-accelerated Whisper inference. Install the following development packages before building:
+
+\begin{itemize}[leftmargin=2em, nosep]
+  \item OpenGL, libcurl, PulseAudio, and Vulkan development headers
+  \item \texttt{glslc} (Vulkan shader compiler)
+\end{itemize}
+
+\noindent See the project README for distribution-specific package names.
 
 % ============================================================================
 % TROUBLESHOOTING
