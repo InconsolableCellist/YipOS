@@ -5,6 +5,9 @@
 % ============================================================================
 \documentclass[10pt]{article}
 
+% --- Manual version (used in title page and back cover) ---
+\newcommand{\manualversion}{1.0}
+
 % --- Page geometry: wide landscape-ish spiral-bound notebook ---
 % Target ~8.5 x 5.5" (half-letter, landscape feel)
 \usepackage[
@@ -260,7 +263,7 @@ Wrist-Mounted CRT Terminal --- Model YB-1}
 \vspace{0.5em}
 {\small\ttfamily
 For use with the Yip OS Desktop Companion Application\\[0.3em]
-Revision 1.0.3}
+Revision \manualversion}
 
 \vspace{0.4em}
 
@@ -349,6 +352,7 @@ The Williams Tube rendering method requires \textbf{27 bits of parameter space}.
 \begin{enumerate}[leftmargin=2em]
   \item Open \texttt{Foxipso/Assets/Yip-Boi} in the Project View and drag the \texttt{Yip-Boi} prefab onto your avatar.
   \item Locate \texttt{Yip-Boi->Container} in the Hierarchy View and position and scale it as desired.
+  \item Locate \texttt{Yip-Boi->Williams Tube->Play Mode Debugger (Removes On Upload)} in the Hierarchy View and change the Tag to ``EditorOnly''. Only change it to ``Untagged'' when you want to test in Play mode (see Section~\ref{sec:testing}).
 \end{enumerate}
 
 You can now upload your avatar and test in VRChat. See Section~\ref{sec:companion} for the companion software.
@@ -1388,7 +1392,7 @@ To obtain warranty service, contact your authorized Foxipso dealer with proof of
 Me here at Foxipso Business Machines hopes that you'll enjoy\\
 using your new Yip-Boi arm-worn computer!\\[0.5em]
 FOXIPSO BUSINESS MACHINES, INC.\\[0.3em]
-Part No. FBM-YB-001-EN Rev.1.0.3 --- 2026}
+Part No. FBM-YB-001-EN Rev.\manualversion\ --- 2026}
 \end{center}
 
 \end{document}
