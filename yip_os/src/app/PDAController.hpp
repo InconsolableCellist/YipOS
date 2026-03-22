@@ -28,6 +28,8 @@ class ChatClient;
 struct ChatMessage;
 class MediaController;
 class StockClient;
+class TwitchClient;
+struct TwitchMessage;
 
 class PDAController {
 public:
@@ -106,6 +108,11 @@ public:
     ChatClient& GetChatClient() { return *chat_client_; }
     void SetSelectedChat(const ChatMessage* msg) { selected_chat_ = msg; }
     const ChatMessage* GetSelectedChat() const { return selected_chat_; }
+
+    // Twitch integration
+    TwitchClient* GetTwitchClient() { return twitch_client_.get(); }
+    void SetSelectedTwitch(const TwitchMessage* msg) { selected_twitch_ = msg; }
+    const TwitchMessage* GetSelectedTwitch() const { return selected_twitch_; }
     bool HasUnseenChatCached() const { return has_unseen_chat_; }
     void RefreshChatCache();
     void MarkChatSeen();
@@ -192,6 +199,8 @@ private:
     std::unique_ptr<ChatClient> chat_client_;
     std::unique_ptr<MediaController> media_controller_;
     std::unique_ptr<StockClient> stock_client_;
+    std::unique_ptr<TwitchClient> twitch_client_;
+    const TwitchMessage* selected_twitch_ = nullptr;
     std::string assets_path_;
     std::string display_text_;
 

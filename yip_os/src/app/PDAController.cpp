@@ -6,6 +6,7 @@
 #include "net/VRCXData.hpp"
 #include "net/ChatClient.hpp"
 #include "net/StockClient.hpp"
+#include "net/TwitchClient.hpp"
 #include "media/MediaController.hpp"
 #include "platform/SystemStats.hpp"
 #include "core/Glyphs.hpp"
@@ -53,6 +54,16 @@ PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Confi
     // Initialize stock client (always created, gated by stonk.enabled at fetch time)
     stock_client_ = std::make_unique<StockClient>();
     ReloadStockSymbols();
+
+    // Initialize Twitch client (gated by twitch.enabled + twitch.channel)
+    twitch_client_ = std::make_unique<TwitchClient>();
+    std::string twitch_channel = config_.GetState("twitch.channel");
+    if (!twitch_channel.empty()) {
+        twitch_client_->SetChannel(twitch_channel);
+        if (config_.GetState("twitch.enabled", "0") == "1") {
+            twitch_client_->Connect();
+        }
+    }
 
     // Push home screen as root
     auto home = std::make_unique<HomeScreen>(*this);

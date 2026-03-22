@@ -117,6 +117,9 @@ set(YIPOS_SOURCES
     src/screens/StonkScreen.cpp
     src/screens/StonkListScreen.cpp
     src/net/StockClient.cpp
+    src/net/TwitchClient.cpp
+    src/screens/TwitchScreen.cpp
+    src/screens/TwitchDetailScreen.cpp
     src/img/VQEncoder.cpp
     src/audio/AudioCapture.cpp
     src/audio/WhisperWorker.cpp

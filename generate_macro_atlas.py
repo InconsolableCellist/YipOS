@@ -107,7 +107,7 @@ TILE_LABELS = [
 ]
 
 TILE_LABELS_P2 = [
-    ["DBG", "-----", "-----", "-----", "-----"],
+    ["DBG", "TWTCH", "-----", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
 ]
@@ -704,6 +704,30 @@ def layout_media(buf):
     buf.put_status_bar()
 
 
+def layout_twtch_feed(buf):
+    """Twitch chat feed: inverted block (rows 1-4) for newest message,
+    horizontal separator, then rows 5-6 for 2nd/3rd newest."""
+    buf.put_frame("TWITCH")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    # Rows 1-4: inverted background for newest message
+    for r in range(1, 5):
+        for c in range(1, COLS - 1):
+            buf.put(c, r, ord(' ') + INVERT_OFFSET)
+    # Visual separator: tee junctions on borders at the transition
+    buf.put_glyph(0, 5, G_L_TEE)
+    buf.put_glyph(COLS - 1, 5, G_R_TEE)
+    # Rows 5-6: normal background for older messages
+    buf.put_status_bar()
+
+
+def layout_twtch_detail(buf):
+    """Twitch chat detail: frame + back arrow + status bar."""
+    buf.put_frame("TWITCH")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_status_bar()
+
+
 SCREEN_LAYOUTS = {
     0: ("HOME", layout_home),
     1: ("STATS", layout_stats),
@@ -738,6 +762,8 @@ SCREEN_LAYOUTS = {
     30: ("HOME P2", layout_home_p2),
     31: ("STONK", layout_stonk),
     32: ("STONK LIST", layout_stonk_list),
+    33: ("TWTCH FEED", layout_twtch_feed),
+    34: ("TWTCH DTL", layout_twtch_detail),
 }
 
 

@@ -48,6 +48,7 @@ private:
     void RenderAvatarTab(PDAController& pda, Config& config);
     void RenderTextTab(PDAController& pda, Config& config, OSCManager& osc);
     void RenderStocksTab(PDAController& pda, Config& config);
+    void RenderTwitchTab(PDAController& pda, Config& config);
     void RenderIMGTab(PDAController& pda, Config& config);
     void RenderNVRAMTab(PDAController& pda, Config& config);
     void RenderLogTab();
@@ -85,6 +86,10 @@ private:
 
     // Stocks tab state
     std::array<char, 32> stonk_symbol_buf_ = {};
+
+    // Twitch tab state
+    std::array<char, 64> twitch_channel_buf_ = {};
+    bool twitch_channel_initialized_ = false;
 
     // OSC Query server (optional, for status display)
     OSCQueryServer* osc_query_ = nullptr;

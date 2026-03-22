@@ -10,6 +10,7 @@
 #include "net/VRCXData.hpp"
 #include "net/VRCAvatarData.hpp"
 #include "net/StockClient.hpp"
+#include "net/TwitchClient.hpp"
 #include "audio/AudioCapture.hpp"
 #include "audio/WhisperWorker.hpp"
 #include "screens/Screen.hpp"
@@ -214,6 +215,10 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
             RenderStocksTab(pda, config);
             ImGui::EndTabItem();
         }
+        if (ImGui::BeginTabItem("Twitch")) {
+            RenderTwitchTab(pda, config);
+            ImGui::EndTabItem();
+        }
         if (ImGui::BeginTabItem("NVRAM")) {
             RenderNVRAMTab(pda, config);
             ImGui::EndTabItem();
@@ -256,7 +261,7 @@ void UIManager::RenderStatusTab(PDAController& pda, OSCManager& osc) {
     auto& display = pda.GetDisplay();
 
     // --- Header ---
-    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "YIP OS v1.0");
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "YIP OS v1.1");
     ImGui::SameLine();
     ImGui::TextDisabled("(C) Foxipso 2026");
     ImGui::TextDisabled("Enable the PDA and Williams Tube in VRChat to see the output!");
@@ -1097,6 +1102,115 @@ void UIManager::RenderIMGTab(PDAController& pda, Config& config) {
     ImGui::Spacing();
     ImGui::TextDisabled("Images are converted to 1-bit dithered 32x32 blocks via VQ encoding,");
     ImGui::TextDisabled("preserving aspect ratio with letterboxing.");
+}
+
+// --- Twitch Tab ---
+void UIManager::RenderTwitchTab(PDAController& pda, Config& config) {
+    ImGui::Text("Twitch Chat Viewer (TWTCH)");
+    ImGui::TextDisabled("Display live Twitch chat on the PDA. Read-only, no account needed.");
+
+    ImGui::Separator();
+
+    // Enable checkbox
+    bool enabled = config.GetState("twitch.enabled", "0") == "1";
+    if (ImGui::Checkbox("Enable Twitch", &enabled)) {
+        config.SetState("twitch.enabled", enabled ? "1" : "0");
+        auto* client = pda.GetTwitchClient();
+        if (client) {
+            if (enabled && !client->GetChannel().empty() && !client->IsConnected()) {
+                client->Connect();
+            } else if (!enabled && client->IsConnected()) {
+                client->Disconnect();
+            }
+        }
+    }
+
+    ImGui::Separator();
+
+    // Channel name
+    ImGui::Text("Channel");
+    ImGui::TextDisabled("The Twitch channel to read chat from (without the #).");
+    ImGui::TextDisabled("Example: \"foxipso\" to read chat from twitch.tv/foxipso");
+
+    if (!twitch_channel_initialized_) {
+        std::string ch = config.GetState("twitch.channel");
+        std::snprintf(twitch_channel_buf_.data(), twitch_channel_buf_.size(), "%s", ch.c_str());
+        twitch_channel_initialized_ = true;
+    }
+
+    ImGui::InputText("##twitch_channel", twitch_channel_buf_.data(), twitch_channel_buf_.size());
+    ImGui::SameLine();
+    if (ImGui::Button("Apply")) {
+        std::string channel(twitch_channel_buf_.data());
+        // Trim whitespace and lowercase
+        while (!channel.empty() && channel.front() == ' ') channel.erase(channel.begin());
+        while (!channel.empty() && channel.back() == ' ') channel.pop_back();
+        for (auto& c : channel) c = static_cast<char>(tolower(c));
+        // Strip leading # if user included it
+        if (!channel.empty() && channel[0] == '#') channel.erase(channel.begin());
+
+        config.SetState("twitch.channel", channel);
+        std::snprintf(twitch_channel_buf_.data(), twitch_channel_buf_.size(), "%s", channel.c_str());
+
+        auto* client = pda.GetTwitchClient();
+        if (client) {
+            // Disconnect and reconnect with new channel
+            if (client->IsConnected()) client->Disconnect();
+            client->SetChannel(channel);
+            if (enabled && !channel.empty()) {
+                client->Connect();
+            }
+        }
+    }
+
+    ImGui::Separator();
+
+    // Connection status
+    ImGui::Text("Status");
+    auto* client = pda.GetTwitchClient();
+    if (client) {
+        std::string channel = client->GetChannel();
+        if (channel.empty()) {
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.3f, 1.0f), "No channel configured");
+        } else if (!enabled) {
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Disabled");
+        } else if (client->IsConnected()) {
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Connected to #%s", channel.c_str());
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "Connecting to #%s...", channel.c_str());
+        }
+
+        ImGui::Text("Messages: %d", client->GetMessageCount());
+
+        // Connect/Disconnect buttons
+        if (enabled && !channel.empty()) {
+            if (client->IsConnected()) {
+                if (ImGui::Button("Reconnect")) {
+                    client->Disconnect();
+                    client->Connect();
+                }
+            } else {
+                if (ImGui::Button("Connect Now")) {
+                    client->Connect();
+                }
+            }
+        }
+    }
+
+    ImGui::Separator();
+
+    // How it works
+    ImGui::Text("How It Works");
+    ImGui::TextDisabled("Yip OS connects to Twitch IRC as an anonymous viewer.");
+    ImGui::TextDisabled("No Twitch account, API key, or OAuth token is required.");
+    ImGui::TextDisabled("Only public chat messages are received (read-only).");
+    ImGui::Spacing();
+    ImGui::TextDisabled("Navigate to page 2 on the PDA home screen and tap TWTCH");
+    ImGui::TextDisabled("to view the chat feed. New messages appear automatically.");
+    ImGui::Spacing();
+    ImGui::TextDisabled("Controls on the PDA:");
+    ImGui::TextDisabled("  Joystick = cycle cursor    SEL (TR) = view message");
+    ImGui::TextDisabled("  ML = page up               BL = page down");
 }
 
 // --- NVRAM Tab ---
