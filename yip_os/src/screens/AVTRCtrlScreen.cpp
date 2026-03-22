@@ -111,14 +111,33 @@ void AVTRCtrlScreen::RenderRows() {
     }
 }
 
+void AVTRCtrlScreen::WriteSelectionMark(int i, bool selected) {
+    int idx = page_ * ROWS_PER_PAGE + i;
+    int row = 1 + i;
+    if (idx >= static_cast<int>(toggles_.size())) return;
+
+    auto& t = toggles_[idx];
+    char chars[3];
+    chars[0] = t.on ? '+' : '-';
+    std::string pname = StripVFPrefix(t.param->name);
+    chars[1] = pname.size() > 0 ? pname[0] : ' ';
+    chars[2] = pname.size() > 1 ? pname[1] : ' ';
+
+    for (int c = 0; c < 3; c++) {
+        int ch = static_cast<int>(chars[c]);
+        if (selected) ch += INVERT_OFFSET;
+        display_.WriteChar(1 + c, row, ch);
+    }
+}
+
 void AVTRCtrlScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
     display_.CancelBuffered();
     display_.BeginBuffered();
     if (old_cursor != new_cursor && old_cursor >= 0 && old_cursor < ItemCountOnPage()) {
-        RenderRow(old_cursor, false);
+        WriteSelectionMark(old_cursor, false);
     }
     if (new_cursor >= 0 && new_cursor < ItemCountOnPage()) {
-        RenderRow(new_cursor, true);
+        WriteSelectionMark(new_cursor, true);
     }
     RenderPageIndicators();
 }

@@ -23,6 +23,7 @@ private:
     void RenderRow(int i, bool selected);
     void RenderRows();
     void RefreshCursorRows(int old_cursor, int new_cursor);
+    void WriteSelectionMark(int i, bool selected);
     void RenderPageIndicators();
 
     static std::string FormatRelativeTime(int64_t date);

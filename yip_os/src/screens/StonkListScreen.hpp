@@ -18,6 +18,7 @@ private:
     void RenderRows();
     void RenderRow(int i, bool selected);
     void RefreshCursorRows(int old_cursor, int new_cursor);
+    void WriteSelectionMark(int i, bool selected);
     void RenderPageIndicators();
 
     std::vector<std::string> symbols_;

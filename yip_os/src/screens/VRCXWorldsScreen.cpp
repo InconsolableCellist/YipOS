@@ -95,15 +95,27 @@ void VRCXWorldsScreen::RenderRows() {
     }
 }
 
+void VRCXWorldsScreen::WriteSelectionMark(int i, bool selected) {
+    int idx = page_ * ROWS_PER_PAGE + i;
+    int row = 1 + i;
+    if (idx >= static_cast<int>(worlds_.size())) return;
+
+    std::string wname = worlds_[idx].world_name.empty() ? "(unknown)" : worlds_[idx].world_name;
+    for (int c = 0; c < 3 && c < static_cast<int>(wname.size()); c++) {
+        int ch = static_cast<int>(wname[c]);
+        if (selected) ch += INVERT_OFFSET;
+        display_.WriteChar(1 + c, row, ch);
+    }
+}
+
 void VRCXWorldsScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
-    // Only update the two affected rows without a full re-render
     display_.CancelBuffered();
     display_.BeginBuffered();
     if (old_cursor != new_cursor && old_cursor >= 0 && old_cursor < ItemCountOnPage()) {
-        RenderRow(old_cursor, false);
+        WriteSelectionMark(old_cursor, false);
     }
     if (new_cursor >= 0 && new_cursor < ItemCountOnPage()) {
-        RenderRow(new_cursor, true);
+        WriteSelectionMark(new_cursor, true);
     }
     RenderPageIndicators();
 }

@@ -129,14 +129,35 @@ void VRCXNotifScreen::RenderRows() {
     }
 }
 
+void VRCXNotifScreen::WriteSelectionMark(int i, bool selected) {
+    static constexpr int LEFT_COL = 2;
+    int idx = page_ * ROWS_PER_PAGE + i;
+    int row = 1 + i;
+    if (idx >= static_cast<int>(notifs_.size())) return;
+
+    auto& n = notifs_[idx];
+    bool unseen = !last_seen_at_.empty() ? (n.created_at > last_seen_at_) : true;
+    char chars[3];
+    chars[0] = unseen ? '*' : ' ';
+    std::string type_str = FormatType(n.type);
+    chars[1] = type_str.size() > 0 ? type_str[0] : ' ';
+    chars[2] = type_str.size() > 1 ? type_str[1] : ' ';
+
+    for (int c = 0; c < 3; c++) {
+        int ch = static_cast<int>(chars[c]);
+        if (selected) ch += INVERT_OFFSET;
+        display_.WriteChar(LEFT_COL + c, row, ch);
+    }
+}
+
 void VRCXNotifScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
     display_.CancelBuffered();
     display_.BeginBuffered();
     if (old_cursor != new_cursor && old_cursor >= 0 && old_cursor < ItemCountOnPage()) {
-        RenderRow(old_cursor, false);
+        WriteSelectionMark(old_cursor, false);
     }
     if (new_cursor >= 0 && new_cursor < ItemCountOnPage()) {
-        RenderRow(new_cursor, true);
+        WriteSelectionMark(new_cursor, true);
     }
     RenderPageIndicators();
 }

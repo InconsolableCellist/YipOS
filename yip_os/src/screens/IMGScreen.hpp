@@ -26,6 +26,7 @@ private:
     void RenderRows();
     void RenderRow(int i, bool selected);
     void RefreshCursorRows(int old_cursor, int new_cursor);
+    void WriteSelectionMark(int i, bool selected);
     void RenderPageIndicators();
     void EnterDisplayMode(const std::string& image_path);
     void ExitDisplayMode();

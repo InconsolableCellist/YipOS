@@ -65,14 +65,27 @@ void AVTRChangeScreen::RenderRows() {
     }
 }
 
+void AVTRChangeScreen::WriteSelectionMark(int i, bool selected) {
+    int idx = page_ * ROWS_PER_PAGE + i;
+    int row = 1 + i;
+    if (idx >= static_cast<int>(avatars_.size())) return;
+
+    std::string dname = avatars_[idx].name;
+    for (int c = 0; c < SEL_WIDTH && c < static_cast<int>(dname.size()); c++) {
+        int ch = static_cast<int>(dname[c]);
+        if (selected) ch += INVERT_OFFSET;
+        display_.WriteChar(1 + c, row, ch);
+    }
+}
+
 void AVTRChangeScreen::RefreshCursorRows(int old_cursor, int new_cursor) {
     display_.CancelBuffered();
     display_.BeginBuffered();
     if (old_cursor != new_cursor && old_cursor >= 0 && old_cursor < ItemCountOnPage()) {
-        RenderRow(old_cursor, false);
+        WriteSelectionMark(old_cursor, false);
     }
     if (new_cursor >= 0 && new_cursor < ItemCountOnPage()) {
-        RenderRow(new_cursor, true);
+        WriteSelectionMark(new_cursor, true);
     }
     RenderPageIndicators();
 }
