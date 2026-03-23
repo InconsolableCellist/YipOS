@@ -125,6 +125,12 @@ set(YIPOS_SOURCES
     src/audio/AudioCapture.cpp
     src/audio/WhisperWorker.cpp
     src/ui/UIManager.cpp
+    src/ui/UIManager_Status.cpp
+    src/ui/UIManager_OSC.cpp
+    src/ui/UIManager_Display.cpp
+    src/ui/UIManager_Audio.cpp
+    src/ui/UIManager_Data.cpp
+    src/ui/UIManager_Config.cpp
 )
 
 # Platform-specific sources

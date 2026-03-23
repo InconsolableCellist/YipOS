@@ -1,5 +1,4 @@
 #include "ScreenBuffer.hpp"
-#include <sstream>
 
 namespace YipOS {
 
@@ -24,18 +23,6 @@ void ScreenBuffer::Clear() {
     for (auto& row : grid_) {
         row.fill(' ');
     }
-}
-
-std::string ScreenBuffer::Dump() const {
-    std::ostringstream ss;
-    ss << "+" << std::string(Glyphs::COLS, '-') << "+\n";
-    for (const auto& row : grid_) {
-        ss << "|";
-        for (char ch : row) ss << ch;
-        ss << "|\n";
-    }
-    ss << "+" << std::string(Glyphs::COLS, '-') << "+";
-    return ss.str();
 }
 
 } // namespace YipOS

@@ -16,6 +16,17 @@ using namespace Glyphs;
 // Each page has its own macro slot (labels baked in).
 // ML = page up, BL = page down. Arrows on left border at rows 4,7.
 
+// Find the index of the closest float value in a setting's values array
+static int FindClosest(const std::vector<float>& values, float target, int from = 0) {
+    int best = from;
+    float best_dist = 999;
+    for (int i = from; i < static_cast<int>(values.size()); i++) {
+        float d = std::abs(values[i] - target);
+        if (d < best_dist) { best_dist = d; best = i; }
+    }
+    return best;
+}
+
 ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
     name = "CONF";
     macro_index = MACRO_BASE; // page 0 → slot 6
@@ -26,77 +37,32 @@ ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
     // Row 1: BOOT, WRITE, SETTL
     settings_.push_back({"BOOT", "", {"OFF", "FAST", "NORM", "SLOW"},
                          {0.0f, 0.5f, 1.0f, 2.0f}, 0, false});
-    {
-        auto& s = settings_.back();
-        if (!config.boot_animation) {
-            s.current = 0;
-        } else {
-            float sp = config.boot_speed;
-            int best = 2;
-            float best_dist = 999;
-            for (int i = 1; i < static_cast<int>(s.values.size()); i++) {
-                float d = std::abs(s.values[i] - sp);
-                if (d < best_dist) { best_dist = d; best = i; }
-            }
-            s.current = best;
-        }
-    }
+    settings_.back().current = config.boot_animation
+        ? FindClosest(settings_.back().values, config.boot_speed, 1) : 0;
 
     settings_.push_back({"WRITE", "", {"ULTR", "FAST", "NORM", "SLOW"},
                          {0.02f, 0.04f, 0.07f, 0.12f}, 0, false});
-    {
-        auto& s = settings_.back();
-        float wd = config.write_delay;
-        int best = 1;
-        float best_dist = 999;
-        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
-            float d = std::abs(s.values[i] - wd);
-            if (d < best_dist) { best_dist = d; best = i; }
-        }
-        s.current = best;
-    }
+    settings_.back().current = FindClosest(settings_.back().values, config.write_delay);
 
     settings_.push_back({"SETTL", "", {"FAST", "NORM", "SLOW"},
                          {0.02f, 0.04f, 0.08f}, 0, false});
-    {
-        auto& s = settings_.back();
-        float sd = config.settle_delay;
-        int best = 1;
-        float best_dist = 999;
-        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
-            float d = std::abs(s.values[i] - sd);
-            if (d < best_dist) { best_dist = d; best = i; }
-        }
-        s.current = best;
-    }
+    settings_.back().current = FindClosest(settings_.back().values, config.settle_delay);
 
     // Row 2: LOG, DBNCE, NVRAM
     settings_.push_back({"LOG", "", {"DBG", "INFO", "WARN", "ERR"},
                          {}, 0, false});
     {
-        auto& s = settings_.back();
         std::string lvl = config.log_level;
-        if (lvl == "DEBUG")   s.current = 0;
-        else if (lvl == "INFO")    s.current = 1;
-        else if (lvl == "WARNING") s.current = 2;
-        else if (lvl == "ERROR")   s.current = 3;
-        else s.current = 1;
+        if (lvl == "DEBUG")        settings_.back().current = 0;
+        else if (lvl == "WARNING") settings_.back().current = 2;
+        else if (lvl == "ERROR")   settings_.back().current = 3;
+        else                       settings_.back().current = 1;
     }
 
     settings_.push_back({"DBNCE", "input.debounce", {"SHRT", "NORM", "LONG"},
                          {150.0f, 300.0f, 500.0f}, 0, false});
-    {
-        auto& s = settings_.back();
-        std::string saved = config.GetState("input.debounce", "300");
-        float val = std::stof(saved);
-        int best = 1;
-        float best_dist = 999;
-        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
-            float d = std::abs(s.values[i] - val);
-            if (d < best_dist) { best_dist = d; best = i; }
-        }
-        s.current = best;
-    }
+    settings_.back().current = FindClosest(settings_.back().values,
+        std::stof(config.GetState("input.debounce", "300")));
 
     settings_.push_back({"NVRAM", "", {"CLR"}, {}, 0, true});
 
@@ -104,47 +70,17 @@ ConfScreen::ConfScreen(PDAController& pda) : Screen(pda) {
     // Row 1: REFR, ALOCK, CHATBG — Row 2: REBOOT
     settings_.push_back({"REFR", "", {"OFF", "5S", "10S", "30S"},
                          {0.0f, 5.0f, 10.0f, 30.0f}, 0, false});
-    {
-        auto& s = settings_.back();
-        float ri = config.refresh_interval;
-        int best = 0;
-        float best_dist = 999;
-        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
-            float d = std::abs(s.values[i] - ri);
-            if (d < best_dist) { best_dist = d; best = i; }
-        }
-        s.current = best;
-    }
+    settings_.back().current = FindClosest(settings_.back().values, config.refresh_interval);
 
     settings_.push_back({"ALOCK", "lock.autolock", {"OFF", "10S", "30S", "1M"},
                          {0.0f, 10.0f, 30.0f, 60.0f}, 0, false});
-    {
-        auto& s = settings_.back();
-        std::string saved = config.GetState("lock.autolock", "30");
-        float val = std::stof(saved);
-        int best = 0;
-        float best_dist = 999;
-        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
-            float d = std::abs(s.values[i] - val);
-            if (d < best_dist) { best_dist = d; best = i; }
-        }
-        s.current = best;
-    }
+    settings_.back().current = FindClosest(settings_.back().values,
+        std::stof(config.GetState("lock.autolock", "30")));
 
     settings_.push_back({"CHATBG", "chat.refresh", {"30S", "1M", "5M", "OFF"},
                          {30.0f, 60.0f, 300.0f, 0.0f}, 1, false});
-    {
-        auto& s = settings_.back();
-        std::string saved = config.GetState("chat.refresh", "60");
-        float val = std::stof(saved);
-        int best = 1;
-        float best_dist = 999;
-        for (int i = 0; i < static_cast<int>(s.values.size()); i++) {
-            float d = std::abs(s.values[i] - val);
-            if (d < best_dist) { best_dist = d; best = i; }
-        }
-        s.current = best;
-    }
+    settings_.back().current = FindClosest(settings_.back().values,
+        std::stof(config.GetState("chat.refresh", "60")));
 
     settings_.push_back({"REBOOT", "", {"GO!"}, {}, 0, true});
 }
