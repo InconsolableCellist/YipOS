@@ -154,11 +154,11 @@ bool WhisperWorker::LoadModel(const std::string& model_path) {
                  (IsMultilingual() ? " (multilingual)" : " (english-only)") +
                  (SupportsTranslation() ? " (translate OK)" : " (no translate)"));
 
-    // Force English output — multilingual models with "auto" may transcribe
-    // in the detected language, and turbo/distilled models may ignore the
-    // translate flag.  Setting language="en" + translate=true ensures
-    // English output regardless of model variant.
-    language_ = "en";
+    // Default to English if no language was explicitly set before loading.
+    // INTRP screen sets language before loading to enable multilingual transcription.
+    if (!language_locked_) {
+        language_ = "en";
+    }
 
     return true;
 }

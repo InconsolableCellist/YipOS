@@ -188,6 +188,10 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
             RenderCCTab(pda, config);
             ImGui::EndTabItem();
         }
+        if (ImGui::BeginTabItem("INTRP")) {
+            RenderINTRPTab(pda, config);
+            ImGui::EndTabItem();
+        }
         if (ImGui::BeginTabItem("Avatar")) {
             RenderAvatarTab(pda, config);
             ImGui::EndTabItem();

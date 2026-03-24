@@ -31,6 +31,7 @@ class MediaController;
 class StockClient;
 class TwitchClient;
 struct TwitchMessage;
+class TranslationWorker;
 
 class PDAController {
 public:
@@ -80,6 +81,13 @@ public:
     void SetWhisperWorker(WhisperWorker* w) { whisper_worker_ = w; }
     AudioCapture* GetAudioCapture() { return audio_capture_; }
     void SetAudioCapture(AudioCapture* a) { audio_capture_ = a; }
+    // Loopback pair for INTRP (system audio capture + separate whisper)
+    WhisperWorker* GetWhisperWorkerLoopback() { return whisper_worker_loopback_; }
+    void SetWhisperWorkerLoopback(WhisperWorker* w) { whisper_worker_loopback_ = w; }
+    AudioCapture* GetAudioCaptureLoopback() { return audio_capture_loopback_; }
+    void SetAudioCaptureLoopback(AudioCapture* a) { audio_capture_loopback_ = a; }
+    TranslationWorker* GetTranslationWorker() { return translation_worker_; }
+    void SetTranslationWorker(TranslationWorker* t) { translation_worker_ = t; }
     VRCAvatarData* GetAvatarData() { return avatar_data_; }
     void SetAvatarData(VRCAvatarData* d) { avatar_data_ = d; }
     void SetSelectedAvatar(const VRCAvatarEntry* a) { selected_avatar_ = a; }
@@ -193,6 +201,9 @@ private:
     const VRCXFeedEntry* selected_feed_ = nullptr;
     WhisperWorker* whisper_worker_ = nullptr;
     AudioCapture* audio_capture_ = nullptr;
+    WhisperWorker* whisper_worker_loopback_ = nullptr;
+    AudioCapture* audio_capture_loopback_ = nullptr;
+    TranslationWorker* translation_worker_ = nullptr;
     VRCAvatarData* avatar_data_ = nullptr;
     const VRCAvatarEntry* selected_avatar_ = nullptr;
     OSCManager* osc_ = nullptr;

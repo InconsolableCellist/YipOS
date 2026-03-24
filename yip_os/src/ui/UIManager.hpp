@@ -46,6 +46,7 @@ private:
     void RenderDisplayTab(PDAController& pda, Config& config);
     void RenderVRCXTab(PDAController& pda, Config& config);
     void RenderCCTab(PDAController& pda, Config& config);
+    void RenderINTRPTab(PDAController& pda, Config& config);
     void RenderAvatarTab(PDAController& pda, Config& config);
     void RenderTextTab(PDAController& pda, Config& config, OSCManager& osc);
     void RenderStocksTab(PDAController& pda, Config& config);

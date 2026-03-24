@@ -12,5 +12,16 @@ if not defined VULKAN_SDK (
 )
 :found_vulkan
 cd /d %~dp0
-cmake -B build_win -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+
+REM vcpkg integration for CTranslate2 + SentencePiece (optional)
+REM Install with: vcpkg install ctranslate2:x64-windows sentencepiece:x64-windows
+set "VCPKG_CMAKE="
+if defined VCPKG_ROOT (
+    if exist "%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake" (
+        set "VCPKG_CMAKE=-DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake"
+        echo vcpkg found at %VCPKG_ROOT%
+    )
+)
+
+cmake -B build_win -G "Ninja" -DCMAKE_BUILD_TYPE=Release %VCPKG_CMAKE%
 cmake --build build_win

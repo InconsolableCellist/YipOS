@@ -31,6 +31,9 @@
 #include "StonkListScreen.hpp"
 #include "TwitchScreen.hpp"
 #include "TwitchDetailScreen.hpp"
+#include "INTRPScreen.hpp"
+#include "INTRPConfScreen.hpp"
+#include "INTRPLangScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Glyphs.hpp"
@@ -159,6 +162,9 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"STONK_LIST",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<StonkListScreen>(p); }},
         {"TWTCH",              [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<TwitchScreen>(p); }},
         {"TWTCH_DTL",          [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<TwitchDetailScreen>(p); }},
+        {"INTRP",              [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPScreen>(p); }},
+        {"INTRP_CONF",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPConfScreen>(p); }},
+        {"INTRP_LANG",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPLangScreen>(p); }},
     };
 
     auto it = registry.find(name);

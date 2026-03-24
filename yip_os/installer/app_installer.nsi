@@ -121,6 +121,11 @@ Section "Install"
     SetOutPath "$INSTDIR"
     File "..\build_win\yip_os.exe"
 
+    ; Translation DLLs (optional — present when built with CTranslate2 via vcpkg)
+    File /nonfatal "..\build_win\ctranslate2.dll"
+    File /nonfatal "..\build_win\sentencepiece.dll"
+    File /nonfatal "..\build_win\openblas.dll"
+
     ; Assets
     SetOutPath "$INSTDIR\assets"
     File /nonfatal "..\assets\vq_codebook.npy"
@@ -162,6 +167,9 @@ Section "Uninstall"
     ; Remove application files
     Delete "$INSTDIR\yip_os.exe"
     Delete "$INSTDIR\uninstall.exe"
+    Delete "$INSTDIR\ctranslate2.dll"
+    Delete "$INSTDIR\sentencepiece.dll"
+    Delete "$INSTDIR\openblas.dll"
     Delete "$INSTDIR\assets\vq_codebook.npy"
     RMDir /r "$INSTDIR\assets\images"
     RMDir "$INSTDIR\assets"

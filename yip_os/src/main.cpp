@@ -19,6 +19,9 @@
 #include "net/VRCAvatarData.hpp"
 #include "audio/AudioCapture.hpp"
 #include "audio/WhisperWorker.hpp"
+#ifdef YIPOS_HAS_TRANSLATION
+#include "translate/TranslationWorker.hpp"
+#endif
 #include "platform/SystemStats.hpp"
 #include "ui/UIManager.hpp"
 
@@ -179,6 +182,18 @@ int main(int argc, char* argv[]) {
         pda.SetAudioCapture(audio_capture.get());
         pda.SetWhisperWorker(&whisper_worker);
 
+        // INTRP (Interpreter) — loopback audio capture + second whisper
+        auto audio_capture_loopback = YipOS::AudioCapture::Create();
+        YipOS::WhisperWorker whisper_worker_loopback;
+        pda.SetAudioCaptureLoopback(audio_capture_loopback.get());
+        pda.SetWhisperWorkerLoopback(&whisper_worker_loopback);
+
+        // INTRP — translation engine (CTranslate2 + NLLB)
+#ifdef YIPOS_HAS_TRANSLATION
+        YipOS::TranslationWorker translation_worker;
+        pda.SetTranslationWorker(&translation_worker);
+#endif
+
         // Restore persisted state
         std::string saved_disk = config.GetState("stats.disk");
         if (!saved_disk.empty()) {
@@ -331,11 +346,17 @@ int main(int argc, char* argv[]) {
             std::this_thread::sleep_for(std::chrono::milliseconds(4));
         }
 
-        // Shutdown
+        // Shutdown — pop all screens first while workers are still alive
         YipOS::Logger::Info("Shutting down");
+        pda.GoHome();
         ui.SaveWindowSize(config);
         whisper_worker.Stop();
         audio_capture->Stop();
+        whisper_worker_loopback.Stop();
+        audio_capture_loopback->Stop();
+#ifdef YIPOS_HAS_TRANSLATION
+        translation_worker.Stop();
+#endif
         ui.Shutdown();
         if (osc_query) osc_query->Stop();
         osc.Shutdown();

@@ -121,6 +121,10 @@ set(YIPOS_SOURCES
     src/net/TwitchClient.cpp
     src/screens/TwitchScreen.cpp
     src/screens/TwitchDetailScreen.cpp
+    src/screens/INTRPScreen.cpp
+    src/screens/INTRPConfScreen.cpp
+    src/screens/INTRPLangScreen.cpp
+    src/translate/TranslationWorker.cpp
     src/img/VQEncoder.cpp
     src/audio/AudioCapture.cpp
     src/audio/WhisperWorker.cpp
@@ -129,6 +133,7 @@ set(YIPOS_SOURCES
     src/ui/UIManager_OSC.cpp
     src/ui/UIManager_Display.cpp
     src/ui/UIManager_Audio.cpp
+    src/ui/UIManager_INTRP.cpp
     src/ui/UIManager_Data.cpp
     src/ui/UIManager_Config.cpp
 )
@@ -157,6 +162,22 @@ target_include_directories(yip_os PRIVATE
 )
 
 find_package(OpenGL REQUIRED)
+
+# CTranslate2 + SentencePiece for NLLB translation (optional)
+find_package(ctranslate2 QUIET)
+if(UNIX)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(SENTENCEPIECE sentencepiece)
+endif()
+if(ctranslate2_FOUND AND SENTENCEPIECE_FOUND)
+    set(YIPOS_HAS_TRANSLATION ON)
+    message(STATUS "CTranslate2 + SentencePiece found — translation enabled")
+else()
+    set(YIPOS_HAS_TRANSLATION OFF)
+    message(STATUS "CTranslate2 or SentencePiece not found — translation disabled")
+    # Remove TranslationWorker from sources when deps are missing
+    list(REMOVE_ITEM YIPOS_SOURCES src/translate/TranslationWorker.cpp)
+endif()
 
 if(WIN32)
     # Build curl from source on Windows (no system package)
@@ -190,8 +211,14 @@ target_link_libraries(yip_os PRIVATE
     CURL::libcurl
 )
 
+if(YIPOS_HAS_TRANSLATION)
+    target_link_libraries(yip_os PRIVATE CTranslate2::ctranslate2)
+    target_include_directories(yip_os PRIVATE ${SENTENCEPIECE_INCLUDE_DIRS})
+    target_link_libraries(yip_os PRIVATE ${SENTENCEPIECE_LIBRARIES})
+    target_compile_definitions(yip_os PRIVATE YIPOS_HAS_TRANSLATION)
+endif()
+
 if(UNIX)
-    find_package(PkgConfig REQUIRED)
     pkg_check_modules(PULSE REQUIRED libpulse-simple libpulse)
     target_include_directories(yip_os PRIVATE ${PULSE_INCLUDE_DIRS})
     target_link_libraries(yip_os PRIVATE pthread dl ${PULSE_LIBRARIES})

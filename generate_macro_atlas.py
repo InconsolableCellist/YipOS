@@ -107,7 +107,7 @@ TILE_LABELS = [
 ]
 
 TILE_LABELS_P2 = [
-    ["DBG", "TWTCH", "-----", "-----", "-----"],
+    ["DBG", "TWTCH", "INTRP", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
 ]
@@ -728,6 +728,36 @@ def layout_twtch_detail(buf):
     buf.put_status_bar()
 
 
+def layout_intrp(buf):
+    """Interpreter: split-screen with separator, CONF button, lang indicator."""
+    buf.put_frame("INTRP")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    # Language indicator placeholder on title row (dynamic: "EN>ES" etc.)
+    # Horizontal separator at row 4
+    buf.put_hline(4)
+    # CONF button on row 6, right-aligned (touch 53 area)
+    buf.put_text(COLS - 1 - 4, 6, "CONF", inverted=True)
+    # Status bar (no clock, same as CC — clock is dynamic)
+    buf.put_glyph(0, 7, G_BL_CORNER)
+    for c in range(1, COLS - 1):
+        buf.put_glyph(c, 7, G_HLINE)
+    buf.put_glyph(COLS - 1, 7, G_BR_CORNER)
+
+
+def layout_intrp_conf(buf):
+    """Interpreter Config: language selection labels + status."""
+    buf.put_frame("INTRP CONF")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    # "I SPEAK" label on row 1 (language value is dynamic/inverted)
+    buf.put_text(2, 1, "I SPEAK")
+    # "THEY SPEAK" label on row 3
+    buf.put_text(2, 3, "THEY SPEAK")
+    # Row 5: model/status placeholder (dynamic)
+    # Row 6: hint
+    buf.put_text(1, 6, "Config in desktop app")
+    buf.put_status_bar()
+
+
 SCREEN_LAYOUTS = {
     0: ("HOME", layout_home),
     1: ("STATS", layout_stats),
@@ -764,6 +794,8 @@ SCREEN_LAYOUTS = {
     32: ("STONK LIST", layout_stonk_list),
     33: ("TWTCH FEED", layout_twtch_feed),
     34: ("TWTCH DTL", layout_twtch_detail),
+    35: ("INTRP", layout_intrp),
+    36: ("INTRP CONF", layout_intrp_conf),
 }
 
 

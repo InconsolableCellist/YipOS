@@ -43,7 +43,9 @@ public:
     std::string PeekLatest() const;
 
     // Configuration
-    void SetLanguage(const std::string& lang) { language_ = lang; }
+    // Set language for transcription. Call before LoadModel to prevent
+    // the default "en" override. Use "auto" for language detection.
+    void SetLanguage(const std::string& lang) { language_ = lang; language_locked_ = true; }
     std::string GetLanguage() const { return language_; }
 
     // Sliding window parameters (milliseconds)
@@ -68,6 +70,7 @@ private:
     whisper_context* ctx_ = nullptr;
     std::string model_name_;
     std::string language_ = "en";
+    bool language_locked_ = false; // true if SetLanguage() was called explicitly
 
     AudioRingBuffer* audio_buffer_ = nullptr;
     std::thread worker_thread_;

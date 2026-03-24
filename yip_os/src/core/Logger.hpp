@@ -1,7 +1,7 @@
 #pragma once
 
 #include <string>
-#include <fstream>
+#include <cstdio>
 #include <mutex>
 
 namespace YipOS {
@@ -32,12 +32,14 @@ public:
     static std::string LevelToString(Level level);
 
 private:
-    static std::ofstream logFile_;
+    static int logFd_;           // Raw POSIX file descriptor
+    static std::string logPath_;
     static bool initialized_;
     static Level minLevel_;
     static std::mutex mutex_;
     static std::string GetTimeString();
     static std::string GetLevelString(Level level);
+    static void WriteRaw(const char* data, size_t len);
 };
 
 } // namespace YipOS
