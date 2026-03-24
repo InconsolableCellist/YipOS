@@ -41,6 +41,9 @@ public:
     // NLLB language code mapping (e.g. "en" → "eng_Latn")
     static std::string ToNLLBCode(const std::string& short_code);
 
+    // Device info (CPU or CUDA)
+    std::string GetDeviceName() const { return device_name_; }
+
     // Default model path
     static std::string DefaultModelPath();
     static bool ModelExists(const std::string& dir);
@@ -58,6 +61,8 @@ private:
     std::unique_ptr<ctranslate2::Translator> translator_;
     std::unique_ptr<sentencepiece::SentencePieceProcessor> tokenizer_;
     std::atomic<bool> model_loaded_{false};
+    std::string device_name_{"CPU"};
+    std::string model_dir_;  // For CUDA→CPU fallback
 
     std::thread worker_thread_;
     std::atomic<bool> running_{false};

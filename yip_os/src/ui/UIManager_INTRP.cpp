@@ -306,7 +306,8 @@ void UIManager::RenderINTRPTab(PDAController& pda, Config& config) {
     auto* translator = pda.GetTranslationWorker();
     if (translator && translator->IsModelLoaded()) {
         if (translator->IsRunning()) {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "NLLB: loaded and running");
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "NLLB: loaded and running (%s)",
+                               translator->GetDeviceName().c_str());
         } else {
             ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.0f, 1.0f), "NLLB: loaded (not started — navigate to INTRP)");
         }

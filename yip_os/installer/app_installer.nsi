@@ -121,10 +121,15 @@ Section "Install"
     SetOutPath "$INSTDIR"
     File "..\build_win\yip_os.exe"
 
-    ; Translation DLLs (optional — present when built with CTranslate2 via vcpkg)
+    ; Translation DLLs (optional — present when built with CTranslate2)
     File /nonfatal "..\build_win\ctranslate2.dll"
     File /nonfatal "..\build_win\sentencepiece.dll"
     File /nonfatal "..\build_win\openblas.dll"
+
+    ; CUDA runtime DLLs (optional — present when CTranslate2 built with CUDA)
+    File /nonfatal "..\build_win\cublas64_12.dll"
+    File /nonfatal "..\build_win\cublasLt64_12.dll"
+    File /nonfatal "..\build_win\cudart64_12.dll"
 
     ; Assets
     SetOutPath "$INSTDIR\assets"
@@ -170,6 +175,9 @@ Section "Uninstall"
     Delete "$INSTDIR\ctranslate2.dll"
     Delete "$INSTDIR\sentencepiece.dll"
     Delete "$INSTDIR\openblas.dll"
+    Delete "$INSTDIR\cublas64_12.dll"
+    Delete "$INSTDIR\cublasLt64_12.dll"
+    Delete "$INSTDIR\cudart64_12.dll"
     Delete "$INSTDIR\assets\vq_codebook.npy"
     RMDir /r "$INSTDIR\assets\images"
     RMDir "$INSTDIR\assets"

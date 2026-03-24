@@ -49,9 +49,9 @@ public:
     std::string GetLanguage() const { return language_; }
 
     // Sliding window parameters (milliseconds)
-    void SetStepMs(int ms) { step_ms_ = std::max(2000, std::min(ms, 5000)); }
+    void SetStepMs(int ms) { step_ms_ = (std::max)(2000, (std::min)(ms, 5000)); }
     int GetStepMs() const { return step_ms_; }
-    void SetLengthMs(int ms) { length_ms_ = std::max(5000, std::min(ms, 15000)); }
+    void SetLengthMs(int ms) { length_ms_ = (std::max)(5000, (std::min)(ms, 15000)); }
     int GetLengthMs() const { return length_ms_; }
 
     // Returns true if current model is multilingual (no ".en" suffix)

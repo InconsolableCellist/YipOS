@@ -153,19 +153,23 @@ elseif(WIN32)
     )
 endif()
 
-add_executable(yip_os ${YIPOS_SOURCES})
-
-target_include_directories(yip_os PRIVATE
-    src
-    thirdparty
-    thirdparty/glad/include
-)
-
-find_package(OpenGL REQUIRED)
-
 # CTranslate2 + SentencePiece for NLLB translation (optional)
+# Must run before add_executable so REMOVE_ITEM takes effect
 find_package(ctranslate2 QUIET)
-if(UNIX)
+if(WIN32)
+    find_package(sentencepiece QUIET CONFIG)
+    if(NOT sentencepiece_FOUND)
+        # SentencePiece may be installed without cmake config — check manually
+        find_library(SENTENCEPIECE_LIB sentencepiece)
+        find_path(SENTENCEPIECE_INC sentencepiece_processor.h)
+        if(SENTENCEPIECE_LIB AND SENTENCEPIECE_INC)
+            set(SENTENCEPIECE_FOUND TRUE)
+            message(STATUS "SentencePiece found manually: ${SENTENCEPIECE_LIB}")
+        endif()
+    else()
+        set(SENTENCEPIECE_FOUND TRUE)
+    endif()
+else()
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(SENTENCEPIECE sentencepiece)
 endif()
@@ -175,9 +179,18 @@ if(ctranslate2_FOUND AND SENTENCEPIECE_FOUND)
 else()
     set(YIPOS_HAS_TRANSLATION OFF)
     message(STATUS "CTranslate2 or SentencePiece not found — translation disabled")
-    # Remove TranslationWorker from sources when deps are missing
     list(REMOVE_ITEM YIPOS_SOURCES src/translate/TranslationWorker.cpp)
 endif()
+
+find_package(OpenGL REQUIRED)
+
+add_executable(yip_os ${YIPOS_SOURCES})
+
+target_include_directories(yip_os PRIVATE
+    src
+    thirdparty
+    thirdparty/glad/include
+)
 
 if(WIN32)
     # Build curl from source on Windows (no system package)
@@ -188,6 +201,7 @@ if(WIN32)
     set(CURL_ZLIB OFF CACHE BOOL "" FORCE)
     set(CURL_DISABLE_LDAP ON CACHE BOOL "" FORCE)
     set(CURL_DISABLE_LDAPS ON CACHE BOOL "" FORCE)
+    set(CURL_USE_LIBSSH2 OFF CACHE BOOL "" FORCE)
     set(USE_LIBIDN2 OFF CACHE BOOL "" FORCE)
     FetchContent_Declare(
         curl
@@ -213,8 +227,17 @@ target_link_libraries(yip_os PRIVATE
 
 if(YIPOS_HAS_TRANSLATION)
     target_link_libraries(yip_os PRIVATE CTranslate2::ctranslate2)
-    target_include_directories(yip_os PRIVATE ${SENTENCEPIECE_INCLUDE_DIRS})
-    target_link_libraries(yip_os PRIVATE ${SENTENCEPIECE_LIBRARIES})
+    if(TARGET sentencepiece)
+        target_link_libraries(yip_os PRIVATE sentencepiece)
+    elseif(TARGET sentencepiece-static)
+        target_link_libraries(yip_os PRIVATE sentencepiece-static)
+    elseif(SENTENCEPIECE_LIB)
+        target_include_directories(yip_os PRIVATE ${SENTENCEPIECE_INC})
+        target_link_libraries(yip_os PRIVATE ${SENTENCEPIECE_LIB})
+    else()
+        target_include_directories(yip_os PRIVATE ${SENTENCEPIECE_INCLUDE_DIRS})
+        target_link_libraries(yip_os PRIVATE ${SENTENCEPIECE_LIBRARIES})
+    endif()
     target_compile_definitions(yip_os PRIVATE YIPOS_HAS_TRANSLATION)
 endif()
 

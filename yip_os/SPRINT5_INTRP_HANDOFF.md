@@ -33,25 +33,80 @@
 - Added `pda.GoHome()` before worker shutdown in main.cpp to prevent segfault
 - Without this, INTRPScreen destructor accesses dangling whisper worker pointers
 
+## What was done (Windows port)
+
+### Build system fixes
+- **build_win.bat** (root + yip_os): Rewrote to avoid `if (...)` blocks entirely (vcvarsall
+  sets env vars with `Program Files (x86)` which breaks batch parenthesis matching). All
+  conditionals use `goto`. Switched from `VsDevCmd.bat` to `vcvarsall.bat x64`.
+- **build_win.bat**: Added `CT2_PREFIX` support (defaults to `C:\ct2_install`), mirrors Linux
+  `build.sh`'s `CT2_PREFIX`. Copies translation + CUDA runtime DLLs to `build_win/` after build.
+- **build_win.bat**: Auto-detects vcpkg from VS 2026 (quotes path for spaces in
+  `Program Files (x86)`).
+- **CMakeLists.txt**: Moved translation detection BEFORE `add_executable` so `list(REMOVE_ITEM)`
+  actually removes TranslationWorker.cpp when deps aren't found.
+- **CMakeLists.txt**: Added Windows SentencePiece discovery — `find_package(sentencepiece CONFIG)`
+  plus manual fallback via `find_library`/`find_path` for plain installs without cmake config.
+- **CMakeLists.txt**: Added `CURL_USE_LIBSSH2 OFF` to avoid runtime dependency on libssh2.dll.
+- **CMakeLists.txt**: SentencePiece linking handles imported targets, static targets, or manual
+  lib/include paths depending on how it was installed.
+
+### MSVC compatibility fixes
+- **Logger.hpp**: Renamed `Level::ERROR` → `Level::ERR` (Windows headers `#define ERROR 0`)
+- **Logger.cpp**: Updated all `Level::ERROR` references to `Level::ERR`
+- **WhisperWorker.hpp**: Wrapped `std::min`/`std::max` with extra parens `(std::max)(...)` to
+  prevent Windows min/max macro expansion
+
+### CUDA acceleration for translation
+- **TranslationWorker.cpp**: CUDA-first device selection — tries `Device::CUDA`, catches exception
+  and falls back to `Device::CPU`. Logs which device is active.
+- **TranslationWorker.cpp**: Runtime CUDA→CPU fallback — if CUDA fails during inference (PTX
+  mismatch, driver too old, etc.), automatically reloads model on CPU and continues translating.
+- **TranslationWorker.hpp**: Added `device_name_` member, `model_dir_` for fallback, `GetDeviceName()`
+- **UIManager_INTRP.cpp**: Status line shows "(CPU)" or "(CUDA)" after "loaded and running"
+
+### INTRPScreen translation guards
+- **INTRPScreen.cpp**: Added `#ifdef YIPOS_HAS_TRANSLATION` guards around all `translator->` calls
+  in `Update()`. Without translation, the screen shows raw speech-to-text without crashing.
+
+### Installer updates
+- **app_installer.nsi**: Added CUDA runtime DLLs (cublas64_12, cublasLt64_12, cudart64_12) with
+  `/nonfatal`. Added cleanup in uninstall section.
+
+### build_ct2.bat — CTranslate2 build helper
+- New script: `build_ct2.bat` builds SentencePiece + CTranslate2 with CUDA from source
+- Uses micromamba CUDA toolkit (`C:\micromamba\envs\ct2build`) without full conda activation
+- Forward-slash CUDA paths for CMake compatibility
+- `--allow-unsupported-compiler` for CUDA 12.6 + VS 2026 (MSVC 19.50)
+- Targets CUDA architectures 60-89 (Pascal through Ada Lovelace)
+- Installs to `C:\ct2_install` with CUDA runtime DLLs
+
 ## Files changed (modified)
+- `build_win.bat` — full rewrite: vcvarsall, goto-based flow, CT2_PREFIX, DLL copy
 - `generate_macro_atlas.py` — INTRP + INTRP_CONF macro layouts
-- `yip_os/CMakeLists.txt` — translation sources + optional CT2/sentencepiece deps
+- `yip_os/CMakeLists.txt` — translation detection before add_executable, Windows SentencePiece
+  discovery, libssh2 disabled, SentencePiece linking for all install types
 - `yip_os/build.sh` — CT2_PREFIX for Linux builds
-- `yip_os/build_win.bat` — optional VCPKG_ROOT integration
+- `yip_os/build_win.bat` — mirrors root build_win.bat changes
 - `yip_os/build_installer.bat` — vcpkg hint
-- `yip_os/installer/app_installer.nsi` — bundles ctranslate2/sentencepiece/openblas DLLs
+- `yip_os/installer/app_installer.nsi` — CUDA DLL bundling + uninstall cleanup
 - `yip_os/src/app/PDAController.hpp` — loopback audio/whisper + translation worker pointers
 - `yip_os/src/audio/WhisperWorker.cpp` — SetLanguage actually sets language_
-- `yip_os/src/audio/WhisperWorker.hpp` — GetModelName(), SetLanguage(), GetLanguage()
+- `yip_os/src/audio/WhisperWorker.hpp` — min/max macro fix, GetModelName(), SetLanguage()
 - `yip_os/src/core/Glyphs.hpp` — INTRP macro entry
-- `yip_os/src/core/Logger.cpp` — raw POSIX I/O rewrite
-- `yip_os/src/core/Logger.hpp` — int logFd_ instead of FILE*
+- `yip_os/src/core/Logger.cpp` — raw POSIX I/O rewrite, Level::ERR
+- `yip_os/src/core/Logger.hpp` — Level::ERR rename, int logFd_
 - `yip_os/src/main.cpp` — loopback instances, translation worker, GoHome before shutdown
+- `yip_os/src/screens/INTRPScreen.cpp` — `#ifdef YIPOS_HAS_TRANSLATION` guards in Update()
 - `yip_os/src/screens/Screen.cpp` — INTRP/INTRP_CONF/INTRP_LANG factory entries
+- `yip_os/src/translate/TranslationWorker.cpp` — CUDA device selection + runtime fallback
+- `yip_os/src/translate/TranslationWorker.hpp` — device_name_, model_dir_, GetDeviceName()
 - `yip_os/src/ui/UIManager.cpp` — INTRP tab in tab bar
 - `yip_os/src/ui/UIManager.hpp` — INTRP tab declarations
+- `yip_os/src/ui/UIManager_INTRP.cpp` — shows CPU/CUDA in NLLB status
 
 ## Files added (new)
+- `build_ct2.bat` — CTranslate2 + SentencePiece CUDA build helper
 - `yip_os/src/screens/INTRPScreen.cpp / .hpp` — main interpreter split-screen
 - `yip_os/src/screens/INTRPConfScreen.cpp / .hpp` — language config screen
 - `yip_os/src/screens/INTRPLangScreen.cpp / .hpp` — language picker (ListScreen)
@@ -63,11 +118,12 @@
 ### Without translation (builds out of the box)
 No extra deps needed. Translation code is compiled out when CT2/sentencepiece aren't found.
 
-### With translation (needs vcpkg or manual install)
-1. Install CTranslate2 + SentencePiece via vcpkg or build from source
-2. Set `VCPKG_ROOT` env var before running `build_win.bat`
-3. For CUDA support: build CTranslate2 with `-DWITH_CUDA=ON`
-4. Installer bundles: ctranslate2.dll, sentencepiece.dll, openblas.dll (with /nonfatal)
+### With translation + CUDA
+1. Install micromamba on Windows: download exe to `C:\micromamba\micromamba.exe`
+2. Create env: `micromamba create -n ct2build cuda-toolkit=12.6.3 cmake ninja -c conda-forge`
+3. Run `build_ct2.bat` — builds SentencePiece + CTranslate2 with CUDA into `C:\ct2_install`
+4. Run `build_win.bat` — auto-detects `C:\ct2_install`, enables translation
+5. Installer bundles: ctranslate2.dll, cublas64_12.dll, cublasLt64_12.dll, cudart64_12.dll
 
 ### NLLB model setup (end user)
 Users need 3 files in `%APPDATA%/yip_os/models/nllb/`:

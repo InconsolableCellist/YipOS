@@ -102,7 +102,7 @@ void Logger::Log(Level level, const std::string& message) {
 void Logger::Debug(const std::string& msg) { Log(Level::DEBUG, msg); }
 void Logger::Info(const std::string& msg) { Log(Level::INFO, msg); }
 void Logger::Warning(const std::string& msg) { Log(Level::WARNING, msg); }
-void Logger::Error(const std::string& msg) { Log(Level::ERROR, msg); }
+void Logger::Error(const std::string& msg) { Log(Level::ERR, msg); }
 void Logger::Critical(const std::string& msg) { Log(Level::CRITICAL, msg); }
 
 void Logger::SetLogLevel(Level level) {
@@ -127,7 +127,7 @@ std::string Logger::GetLevelString(Level level) {
         case Level::DEBUG:    return "DEBUG";
         case Level::INFO:     return "INFO";
         case Level::WARNING:  return "WARNING";
-        case Level::ERROR:    return "ERROR";
+        case Level::ERR:    return "ERROR";
         case Level::CRITICAL: return "CRITICAL";
         default:              return "UNKNOWN";
     }
@@ -137,7 +137,7 @@ Logger::Level Logger::StringToLevel(const std::string& str) {
     if (str == "DEBUG") return Level::DEBUG;
     if (str == "INFO") return Level::INFO;
     if (str == "WARNING") return Level::WARNING;
-    if (str == "ERROR") return Level::ERROR;
+    if (str == "ERROR") return Level::ERR;
     if (str == "CRITICAL") return Level::CRITICAL;
     return Level::INFO;
 }

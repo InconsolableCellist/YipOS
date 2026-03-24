@@ -12,7 +12,7 @@ public:
         DEBUG,
         INFO,
         WARNING,
-        ERROR,
+        ERR,       // Not "ERROR" — Windows headers #define ERROR 0
         CRITICAL
     };
 

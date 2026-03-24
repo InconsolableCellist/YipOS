@@ -244,8 +244,12 @@ void INTRPScreen::Update() {
     auto& config = pda_.GetConfig();
     std::string my_lang = config.GetState("intrp.my_lang", "en");
     std::string their_lang = config.GetState("intrp.their_lang", "es");
+#ifdef YIPOS_HAS_TRANSLATION
     auto* translator = pda_.GetTranslationWorker();
     bool can_translate = translator && translator->IsRunning();
+#else
+    bool can_translate = false;
+#endif
 
     // --- Submit loopback whisper (their speech) for translation ---
     auto* whisper_loop = pda_.GetWhisperWorkerLoopback();
@@ -254,8 +258,10 @@ void INTRPScreen::Update() {
             std::string text = whisper_loop->PopCommitted();
             if (FilterText(text)) continue;
             if (can_translate && their_lang != my_lang) {
+#ifdef YIPOS_HAS_TRANSLATION
                 Logger::Debug("INTRP: Loop -> translate (" + their_lang + ">" + my_lang + "): " + text.substr(0, 60));
                 translator->Translate(text, their_lang, my_lang, 0);
+#endif
             } else {
                 Logger::Debug("INTRP: Loopback raw (can_translate=" +
                               std::string(can_translate ? "true" : "false") +
@@ -275,8 +281,10 @@ void INTRPScreen::Update() {
             std::string text = whisper_mic->PopCommitted();
             if (FilterText(text)) continue;
             if (can_translate && my_lang != their_lang) {
+#ifdef YIPOS_HAS_TRANSLATION
                 Logger::Debug("INTRP: Mic -> translate (" + my_lang + ">" + their_lang + "): " + text.substr(0, 60));
                 translator->Translate(text, my_lang, their_lang, 1);
+#endif
             } else {
                 Logger::Debug("INTRP: Mic raw (can_translate=" +
                               std::string(can_translate ? "true" : "false") +
@@ -290,6 +298,7 @@ void INTRPScreen::Update() {
     }
 
     // --- Pull translated results ---
+#ifdef YIPOS_HAS_TRANSLATION
     if (can_translate) {
         // Channel 0: their speech translated to my language → top half
         while (translator->HasResult(0)) {
@@ -314,6 +323,7 @@ void INTRPScreen::Update() {
             }
         }
     }
+#endif
 
     // --- Write top half (their speech, rows 1-3) ---
     if (!pending_top_.empty()) {

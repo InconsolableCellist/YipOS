@@ -104,15 +104,23 @@ bool TranslationWorker::LoadModel(const std::string& model_dir) {
             return false;
         }
 
-        // Load CTranslate2 model (CPU only, auto-select best compute type)
-        translator_ = std::make_unique<ctranslate2::Translator>(
-            model_dir,
-            ctranslate2::Device::CPU,
-            ctranslate2::ComputeType::AUTO
-        );
+        model_dir_ = model_dir;
+
+        // Try CUDA first for GPU acceleration, fall back to CPU
+        try {
+            translator_ = std::make_unique<ctranslate2::Translator>(
+                model_dir, ctranslate2::Device::CUDA, ctranslate2::ComputeType::AUTO);
+            device_name_ = "CUDA";
+            Logger::Info("NLLB: Using CUDA acceleration");
+        } catch (...) {
+            translator_ = std::make_unique<ctranslate2::Translator>(
+                model_dir, ctranslate2::Device::CPU, ctranslate2::ComputeType::AUTO);
+            device_name_ = "CPU";
+            Logger::Info("NLLB: CUDA unavailable, using CPU");
+        }
 
         model_loaded_ = true;
-        Logger::Info("NLLB: Model loaded from " + model_dir);
+        Logger::Info("NLLB: Model loaded from " + model_dir + " (" + device_name_ + ")");
         return true;
     } catch (const std::exception& e) {
         Logger::Error("NLLB: Failed to load model: " + std::string(e.what()));
@@ -262,7 +270,27 @@ void TranslationWorker::ProcessLoop() {
             }
 
         } catch (const std::exception& e) {
-            Logger::Warning("NLLB: Translation failed: " + std::string(e.what()));
+            std::string msg = e.what();
+            Logger::Warning("NLLB: Translation failed: " + msg);
+
+            // If CUDA fails at inference time, reload model on CPU
+            if (device_name_ == "CUDA" &&
+                (msg.find("cuda") != std::string::npos ||
+                 msg.find("CUDA") != std::string::npos ||
+                 msg.find("PTX") != std::string::npos)) {
+                Logger::Warning("NLLB: CUDA inference failed, falling back to CPU");
+                try {
+                    translator_.reset();
+                    translator_ = std::make_unique<ctranslate2::Translator>(
+                        model_dir_, ctranslate2::Device::CPU, ctranslate2::ComputeType::AUTO);
+                    device_name_ = "CPU";
+                    Logger::Info("NLLB: Reloaded model on CPU successfully");
+                } catch (const std::exception& e2) {
+                    Logger::Error("NLLB: CPU fallback failed: " + std::string(e2.what()));
+                    model_loaded_ = false;
+                    running_ = false;
+                }
+            }
         }
     }
 }
