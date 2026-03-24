@@ -633,27 +633,23 @@ void PDAController::RefreshStockCache() {
     if (!stock_client_) return;
     if (config_.GetState("stonk.enabled", "0") != "1") return;
 
+    // Only fetch when the STONK screen is actually open
+    Screen* s = GetCurrentScreen();
+    bool on_stonk = s && (s->name == "STONK" || s->name == "STONK_LIST");
+    if (!on_stonk) return;
+
     // Re-sync symbol list from config each cycle (UI may have changed it)
     ReloadStockSymbols();
 
-    std::string refresh_str = config_.GetState("stonk.refresh", "300");
-    double interval = STOCK_CHECK_INTERVAL_DEFAULT;
-    try { interval = std::stod(refresh_str); }
-    catch (...) {}
-    if (interval <= 0) return;
+    std::string sel = config_.GetState("stonk.selected", "DOGE");
+    auto* quote = stock_client_->GetQuote(sel);
 
-    // Use a much shorter interval when the STONK screen is active,
-    // and fetch immediately (interval=0) if no data exists yet.
-    Screen* s = GetCurrentScreen();
-    bool on_stonk = s && (s->name == "STONK" || s->name == "STONK_LIST");
-    if (on_stonk) {
-        std::string sel = config_.GetState("stonk.selected", "DOGE");
-        auto* quote = stock_client_->GetQuote(sel);
-        if (!quote || quote->history.empty()) {
-            interval = 0;  // fetch right now — no data yet
-        } else {
-            interval = 30.0;  // faster refresh while viewing
-        }
+    // Fetch immediately if no data exists yet, otherwise use a 30s refresh
+    double interval;
+    if (!quote || quote->history.empty()) {
+        interval = 0;
+    } else {
+        interval = 30.0;
     }
 
     double now = MonotonicNow();
