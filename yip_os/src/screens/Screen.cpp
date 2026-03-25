@@ -35,6 +35,9 @@
 #include "INTRPConfScreen.hpp"
 #include "INTRPLangScreen.hpp"
 #include "QRTestScreen.hpp"
+#include "DMScreen.hpp"
+#include "DMDetailScreen.hpp"
+#include "DMPairScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Glyphs.hpp"
@@ -116,8 +119,8 @@ void Screen::RenderStatusIcons() {
     } else {
         display_.WriteGlyph(2, 7, G_HLINE);
     }
-    // Col 3: notification indicator (VRCX notifs OR chat unseen)
-    if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached()) {
+    // Col 3: notification indicator (VRCX notifs OR chat/DM unseen)
+    if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached() || pda_.HasUnseenDMCached()) {
         display_.WriteGlyph(3, 7, G_BULLET);
     } else {
         display_.WriteGlyph(3, 7, G_HLINE);
@@ -167,6 +170,9 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"INTRP_CONF",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPConfScreen>(p); }},
         {"INTRP_LANG",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPLangScreen>(p); }},
         {"QRTEST",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<QRTestScreen>(p); }},
+        {"DM",                 [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMScreen>(p); }},
+        {"DM_DTL",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMDetailScreen>(p); }},
+        {"DM_PAIR",            [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMPairScreen>(p); }},
     };
 
     auto it = registry.find(name);

@@ -27,6 +27,7 @@ struct VRCAvatarEntry;
 class OSCManager;
 class ChatClient;
 struct ChatMessage;
+class DMClient;
 class MediaController;
 class StockClient;
 class TwitchClient;
@@ -117,6 +118,16 @@ public:
     ChatClient& GetChatClient() { return *chat_client_; }
     void SetSelectedChat(const ChatMessage* msg) { selected_chat_ = msg; }
     const ChatMessage* GetSelectedChat() const { return selected_chat_; }
+
+    // DM integration
+    DMClient& GetDMClient() { return *dm_client_; }
+    void SetSelectedDMSession(const std::string& sid) { selected_dm_session_ = sid; }
+    const std::string& GetSelectedDMSession() const { return selected_dm_session_; }
+    bool HasUnseenDMCached() const { return has_unseen_dm_; }
+    void RefreshDMCache();
+    void MarkDMSeen();
+    void SaveDMSessions();
+    void LoadDMSessions();
 
     // Twitch integration
     TwitchClient* GetTwitchClient() { return twitch_client_.get(); }
@@ -209,6 +220,8 @@ private:
     OSCManager* osc_ = nullptr;
     const ChatMessage* selected_chat_ = nullptr;
     std::unique_ptr<ChatClient> chat_client_;
+    std::unique_ptr<DMClient> dm_client_;
+    std::string selected_dm_session_;
     std::unique_ptr<MediaController> media_controller_;
     std::unique_ptr<StockClient> stock_client_;
     std::unique_ptr<TwitchClient> twitch_client_;
@@ -258,6 +271,11 @@ private:
     bool has_unseen_chat_ = false;
     double last_chat_check_ = 0;
     static constexpr double CHAT_CHECK_INTERVAL_DEFAULT = 60.0;
+
+    // DM unseen cache
+    bool has_unseen_dm_ = false;
+    double last_dm_check_ = 0;
+    static constexpr double DM_CHECK_INTERVAL_DEFAULT = 60.0;
 
     // Stock cache
     double last_stock_check_ = 0;

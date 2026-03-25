@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <array>
 #include <functional>
+#include <unordered_map>
 
 struct GLFWwindow;
 
@@ -52,6 +53,7 @@ private:
     void RenderStocksTab(PDAController& pda, Config& config);
     void RenderTwitchTab(PDAController& pda, Config& config);
     void RenderIMGTab(PDAController& pda, Config& config);
+    void RenderDMTab(PDAController& pda, Config& config);
     void RenderNVRAMTab(PDAController& pda, Config& config);
     void RenderLogTab();
 
@@ -92,6 +94,14 @@ private:
     // Twitch tab state
     std::array<char, 64> twitch_channel_buf_ = {};
     bool twitch_channel_initialized_ = false;
+
+    // DM tab state
+    std::array<char, 256> dm_endpoint_buf_ = {};
+    bool dm_endpoint_initialized_ = false;
+    std::array<char, 64> dm_name_buf_ = {};
+    bool dm_name_initialized_ = false;
+    std::array<char, 8> dm_join_code_buf_ = {};
+    std::unordered_map<std::string, std::array<char, 256>> dm_compose_bufs_;
 
     // OSC Query server (optional, for status display)
     OSCQueryServer* osc_query_ = nullptr;

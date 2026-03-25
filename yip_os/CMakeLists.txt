@@ -71,6 +71,15 @@ target_compile_definitions(sqlite3 PRIVATE
     SQLITE_THREADSAFE=1
 )
 
+# quirc (QR decoder, ISC license)
+add_library(quirc STATIC
+    thirdparty/quirc/quirc.c
+    thirdparty/quirc/decode.c
+    thirdparty/quirc/identify.c
+    thirdparty/quirc/version_db.c
+)
+target_include_directories(quirc PUBLIC thirdparty)
+
 # Collect sources
 set(YIPOS_SOURCES
     src/main.cpp
@@ -125,6 +134,11 @@ set(YIPOS_SOURCES
     src/screens/INTRPConfScreen.cpp
     src/screens/INTRPLangScreen.cpp
     src/screens/QRTestScreen.cpp
+    src/screens/DMScreen.cpp
+    src/screens/DMDetailScreen.cpp
+    src/screens/DMPairScreen.cpp
+    src/net/DMClient.cpp
+    src/img/QRGen.cpp
     src/translate/TranslationWorker.cpp
     src/img/VQEncoder.cpp
     src/audio/AudioCapture.cpp
@@ -137,6 +151,7 @@ set(YIPOS_SOURCES
     src/ui/UIManager_INTRP.cpp
     src/ui/UIManager_Data.cpp
     src/ui/UIManager_Config.cpp
+    src/ui/UIManager_DM.cpp
 )
 
 # Platform-specific sources
@@ -145,12 +160,14 @@ if(UNIX)
         src/platform/SystemStats_linux.cpp
         src/audio/AudioCapture_linux.cpp
         src/media/MediaController_linux.cpp
+        src/platform/ScreenCapture_linux.cpp
     )
 elseif(WIN32)
     list(APPEND YIPOS_SOURCES
         src/platform/SystemStats_windows.cpp
         src/audio/AudioCapture_windows.cpp
         src/media/MediaController_windows.cpp
+        src/platform/ScreenCapture_windows.cpp
     )
 endif()
 
@@ -263,6 +280,7 @@ target_link_libraries(yip_os PRIVATE
     glfw
     inih
     sqlite3
+    quirc
     whisper
     OpenGL::GL
     CURL::libcurl
@@ -303,7 +321,8 @@ endif()
 if(UNIX)
     pkg_check_modules(PULSE REQUIRED libpulse-simple libpulse)
     target_include_directories(yip_os PRIVATE ${PULSE_INCLUDE_DIRS})
-    target_link_libraries(yip_os PRIVATE pthread dl ${PULSE_LIBRARIES})
+    find_package(X11 REQUIRED)
+    target_link_libraries(yip_os PRIVATE pthread dl ${PULSE_LIBRARIES} X11::X11)
 elseif(WIN32)
     target_link_libraries(yip_os PRIVATE ws2_32 iphlpapi windowsapp)
 endif()

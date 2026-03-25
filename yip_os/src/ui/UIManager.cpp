@@ -212,6 +212,10 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
             RenderTwitchTab(pda, config);
             ImGui::EndTabItem();
         }
+        if (ImGui::BeginTabItem("DM")) {
+            RenderDMTab(pda, config);
+            ImGui::EndTabItem();
+        }
         if (ImGui::BeginTabItem("NVRAM")) {
             RenderNVRAMTab(pda, config);
             ImGui::EndTabItem();

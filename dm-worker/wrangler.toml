@@ -1,0 +1,7 @@
+name = "yipos-dm"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[[kv_namespaces]]
+binding = "DM_KV"
+id = "874150dfc6164bec918198cdea28eef6"          

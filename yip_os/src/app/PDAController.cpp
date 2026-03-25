@@ -5,6 +5,7 @@
 #include "net/NetTracker.hpp"
 #include "net/VRCXData.hpp"
 #include "net/ChatClient.hpp"
+#include "net/DMClient.hpp"
 #include "net/StockClient.hpp"
 #include "net/TwitchClient.hpp"
 #include "media/MediaController.hpp"
@@ -40,6 +41,32 @@ PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Confi
         try { chat_client_->SetLastSeenDate(std::stoll(last_seen)); }
         catch (...) {}
     }
+
+    // Initialize DMClient
+    dm_client_ = std::make_unique<DMClient>();
+    std::string dm_endpoint = config_.GetState("dm.endpoint", "https://yipos-dm.dan-a7b.workers.dev");
+    dm_client_->SetEndpoint(dm_endpoint);
+    // Auto-generate user ID if not set
+    std::string dm_uid = config_.GetState("dm.user_id");
+    if (dm_uid.empty()) {
+        // Generate a simple UUID v4
+        std::random_device rd;
+        std::mt19937_64 gen(rd());
+        std::uniform_int_distribution<uint64_t> dist;
+        uint64_t a = dist(gen), b = dist(gen);
+        char uuid[40];
+        std::snprintf(uuid, sizeof(uuid), "%08x-%04x-4%03x-%04x-%012llx",
+                      static_cast<uint32_t>(a >> 32),
+                      static_cast<uint16_t>(a >> 16),
+                      static_cast<uint16_t>(a) & 0xFFF,
+                      static_cast<uint16_t>((b >> 48) & 0x3FFF) | 0x8000,
+                      static_cast<unsigned long long>(b & 0xFFFFFFFFFFFFULL));
+        dm_uid = uuid;
+        config_.SetState("dm.user_id", dm_uid);
+    }
+    dm_client_->SetUserId(dm_uid);
+    dm_client_->SetDisplayName(config_.GetState("dm.display_name", "Yip User"));
+    LoadDMSessions();
 
     // Initialize media controller
     media_controller_ = MediaController::Create();
@@ -358,6 +385,9 @@ void PDAController::UpdateClock() {
     // Periodically check for new chat messages
     RefreshChatCache();
 
+    // Periodically check for new DMs
+    RefreshDMCache();
+
     // Periodically refresh stock data
     RefreshStockCache();
 
@@ -610,6 +640,76 @@ void PDAController::MarkChatSeen() {
         config_.SetState("chat.last_seen", std::to_string(newest));
     }
     has_unseen_chat_ = false;
+}
+
+void PDAController::RefreshDMCache() {
+    std::string refresh_str = config_.GetState("dm.poll_interval", "60");
+    double interval = DM_CHECK_INTERVAL_DEFAULT;
+    try { interval = std::stod(refresh_str); }
+    catch (...) {}
+    if (interval <= 0) return;
+
+    // Shorter interval when DM or DM_DTL screen is active
+    Screen* s = GetCurrentScreen();
+    if (s && (s->name == "DM" || s->name == "DM_DTL")) {
+        interval = 15.0;
+    }
+
+    double now = MonotonicNow();
+    if (now - last_dm_check_ < interval) return;
+    last_dm_check_ = now;
+
+    dm_client_->PollAll();
+    has_unseen_dm_ = dm_client_->HasUnseen();
+}
+
+void PDAController::MarkDMSeen() {
+    has_unseen_dm_ = false;
+}
+
+void PDAController::SaveDMSessions() {
+    auto& sessions = dm_client_->GetSessions();
+    std::string ids;
+    for (size_t i = 0; i < sessions.size(); i++) {
+        if (i > 0) ids += ',';
+        ids += sessions[i].session_id;
+        config_.SetState("dm.session." + sessions[i].session_id + ".peer_name",
+                         sessions[i].peer_name);
+        config_.SetState("dm.session." + sessions[i].session_id + ".peer_id",
+                         sessions[i].peer_id);
+        if (sessions[i].last_seen_date > 0) {
+            config_.SetState("dm.session." + sessions[i].session_id + ".last_seen",
+                             std::to_string(sessions[i].last_seen_date));
+        }
+    }
+    config_.SetState("dm.sessions", ids);
+}
+
+void PDAController::LoadDMSessions() {
+    std::string ids_str = config_.GetState("dm.sessions");
+    if (ids_str.empty()) return;
+
+    size_t start = 0;
+    while (start < ids_str.size()) {
+        size_t end = ids_str.find(',', start);
+        if (end == std::string::npos) end = ids_str.size();
+        std::string sid = ids_str.substr(start, end - start);
+        start = end + 1;
+
+        if (sid.empty()) continue;
+        std::string peer_name = config_.GetState("dm.session." + sid + ".peer_name");
+        std::string peer_id = config_.GetState("dm.session." + sid + ".peer_id");
+        dm_client_->AddSession(sid, peer_id, peer_name);
+
+        std::string last_seen = config_.GetState("dm.session." + sid + ".last_seen");
+        if (!last_seen.empty()) {
+            auto* session = dm_client_->GetSession(sid);
+            if (session) {
+                try { session->last_seen_date = std::stoll(last_seen); }
+                catch (...) {}
+            }
+        }
+    }
 }
 
 void PDAController::ReloadStockSymbols() {

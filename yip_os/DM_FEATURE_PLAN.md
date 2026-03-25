@@ -58,15 +58,7 @@ Platform-split pattern follows `AudioCapture_linux.cpp` / `AudioCapture_windows.
 ---
 
 ## 4. Audio Dial-Up Pairing (Linux Bonus)
-
-On Linux, PulseAudio can create a virtual mic source that mixes DTMF tones with real microphone audio. Alice's tones go through VRChat voice chat; Bob's loopback capture + Goertzel decoder extract the session data.
-
-- DTMF: 697–1633 Hz, 16 hex digits × 150ms = ~2.4 seconds
-- PulseAudio playback + virtual source: ~140 lines (APIs already linked)
-- Goertzel decoder: ~150 lines (pure math)
-- 5× redundant transmission + CRC-8 for robustness
-
-Linux-exclusive enhancement. Windows uses QR + manual code.
+Not planned
 
 ---
 
@@ -181,35 +173,47 @@ Reuse existing unseen-indicator pattern: `has_unseen_dm_` flag in PDAController,
 - QRTEST tile added to Home Page 2
 - Verified working in VRChat
 
-### Phase 1: Core DM Infrastructure
+### Phase 1: Core DM Infrastructure ✅
 
-- `DMClient` (mirrors ChatClient pattern — libcurl, hand-rolled JSON parser)
-- CF Worker with all DM endpoints (deploy to separate worker from chat)
-- `DMScreen` — ListScreen subclass showing conversation list with unseen indicators
-- `DMDetailScreen` — single conversation view with message history
-- 6-digit manual code pairing as initial pairing method
-- `dm.user_id` auto-generated UUID on first use, stored in config
-- Notification indicators (status bar dot, home tile asterisk)
-- ImGui desktop UI: text input for composing messages, DM session management
+- `DMClient` (`src/net/DMClient.hpp/cpp`) — libcurl, hand-rolled JSON, multi-session, pairing + messaging
+- CF Worker deployed (`dm-worker/worker.js`) — all 6 endpoints, KV backend, rate limiting, ASCII sanitization
+  - Per-IP rate limits on create (5/day) and join (5/5min)
+  - Per-session send rate limit (100/day)
+  - All inputs sanitized to printable ASCII, length-capped
+  - Auth check on message read (session membership required)
+  - 20 messages/conversation, 140 chars/message
+- `DMScreen` (`src/screens/DMScreen.hpp/cpp`) — ListScreen conversation list, unseen indicators, PAIR button
+- `DMDetailScreen` (`src/screens/DMDetailScreen.hpp/cpp`) — message thread view
+- `DMPairScreen` (`src/screens/DMPairScreen.hpp/cpp`) — pairing ceremony: CREATE shows code + countdown, polls for peer, confirms
+- 6-digit manual code pairing (CREATE on CRT, JOIN via ImGui text input)
+- `dm.user_id` auto-generated UUID v4 on first use, stored in config
+- Session persistence in config (dm.sessions, per-session peer_name/peer_id/last_seen)
+- Notification indicators (status bar dot includes DM unseen)
+- DM tile on home page 2
+- ImGui DM tab (`src/ui/UIManager_DM.cpp`): endpoint config, display name, create/join pairing, per-session compose + send, poll interval
+- DM polling in PDAController (60s default, 15s burst when DM screens active)
 
 ### Phase 2: QR Visual Pairing
 
-- `QRGen` — minimal QR V1 encoder in C++ (generates 21×21 module matrix from arbitrary numeric payload)
-- `DMPairScreen` — pairing ceremony UI:
-  1. Initiator: generates session, stamps QR template macro, writes payload-specific data modules
-  2. Receiver: captures screen + decodes QR (or enters 6-digit code manually)
-  3. Both confirm, session is paired
+- `QRGen` — minimal QR V1 encoder in C++ (generates 21×21 module matrix from 6-digit pairing code)
+- `DMPairScreen` update — initiator renders QR on CRT via stamp + data module writes (reuses Phase 0 approach)
 - `ScreenCapture` (DXGI Desktop Duplication on Windows, X11 XGetImage on Linux)
-- `thirdparty/quirc/` integration for QR decoding
-- Screen-space shader sphere on avatar for VRChat Stream Camera capture
+- `thirdparty/quirc/` integration for QR decoding from full desktop screenshot
+- Receiver flow: capture desktop → quirc finds QR in frame → auto-join
+- No shader sphere needed — users are in conversation distance, QR visible on CRT in VRChat viewport
+- Fallback: 6-digit manual code entry still available via ImGui
 
 ### Phase 3: Audio Dial-Up Pairing (Linux)
 
+Not planned. Legacy:
+```
 - `ToneCodec` — DTMF tone generator (sine wave synthesis) + Goertzel algorithm decoder
 - `AudioPlayback` — PulseAudio playback to null sink + `module-combine-source` virtual mic mixing
 - Audio pairing mode in DMPairScreen: initiator dials, receiver listens on loopback capture
 - 5× redundant transmission + CRC-8 for robustness through VRChat Opus codec
 - Graceful fallback to 6-digit code if decode fails
+
+```
 
 ### Phase 4 (v2): Hardening
 
@@ -246,6 +250,23 @@ Reuse existing unseen-indicator pattern: `has_unseen_dm_` flag in PDAController,
 | QR test screen | `src/screens/QRTestScreen.hpp/cpp` |
 | Macro atlas (updated) | `generate_macro_atlas.py` — QR template slot, glyph render fix, QRTEST tile |
 | Home tile labels | `src/core/Glyphs.hpp` — QRTEST on page 2 |
+
+### Phase 1 (created)
+
+| Purpose | File |
+|---------|------|
+| DM network client | `src/net/DMClient.hpp/cpp` |
+| DM conversation list | `src/screens/DMScreen.hpp/cpp` |
+| DM message thread | `src/screens/DMDetailScreen.hpp/cpp` |
+| DM pairing ceremony | `src/screens/DMPairScreen.hpp/cpp` |
+| ImGui DM tab | `src/ui/UIManager_DM.cpp` |
+| CF Worker backend | `dm-worker/worker.js` |
+| Worker config | `dm-worker/wrangler.toml` |
+| Controller (updated) | `src/app/PDAController.hpp/cpp` — DMClient ownership, DM polling, session persistence |
+| Screen registry (updated) | `src/screens/Screen.cpp` — DM, DM_DTL, DM_PAIR entries |
+| Home tile labels (updated) | `src/core/Glyphs.hpp` — DM on page 2 |
+| CMakeLists (updated) | `yip_os/CMakeLists.txt` — new source files |
+| UIManager (updated) | `src/ui/UIManager.hpp/cpp` — DM tab declaration + state + tab bar |
 
 ---
 
