@@ -34,6 +34,7 @@
 #include "INTRPScreen.hpp"
 #include "INTRPConfScreen.hpp"
 #include "INTRPLangScreen.hpp"
+#include "QRTestScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "core/Glyphs.hpp"
@@ -165,6 +166,7 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"INTRP",              [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPScreen>(p); }},
         {"INTRP_CONF",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPConfScreen>(p); }},
         {"INTRP_LANG",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<INTRPLangScreen>(p); }},
+        {"QRTEST",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<QRTestScreen>(p); }},
     };
 
     auto it = registry.find(name);
