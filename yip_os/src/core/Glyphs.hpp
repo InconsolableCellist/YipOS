@@ -32,7 +32,7 @@ constexpr TileLabel TILE_LABELS[HOME_PAGES][TILE_ROWS][TILE_COLS] = {
      {{"VRCX"},  {"HEART"}, {"BFI"},   {"STONK"}, {"CHAT"}},
      {{"CC"},    {"AVTR"},  {"TEXT"},  {"MEDIA"}, {"LOCK"}}},
     // Page 1
-    {{{"DBG"},   {"TWTCH"}, {"INTRP"}, {"-----"}, {"-----"}},
+    {{{"DBG"},   {"TWTCH"}, {"INTRP"}, {"QRTEST"}, {"-----"}},
      {{"-----"}, {"-----"}, {"-----"}, {"-----"}, {"-----"}},
      {{"-----"}, {"-----"}, {"-----"}, {"-----"}, {"-----"}}},
 };
@@ -197,6 +197,10 @@ inline BankedGlyph MapCodepoint(uint32_t cp) {
         case 0x30FC: return {1, 237};  // ー
         case 0xFF5E: return {1, 238};  // ～ (fullwidth tilde)
     }
+
+    // CJK Unified Ideographs: display '?' (kanji without MeCab conversion)
+    if ((cp >= 0x4E00 && cp <= 0x9FFF) || (cp >= 0x3400 && cp <= 0x4DBF))
+        return {0, '?'};
 
     // Fallback: space in bank 0
     return {0, 32};

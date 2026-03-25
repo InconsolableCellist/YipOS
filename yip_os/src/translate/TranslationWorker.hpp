@@ -12,6 +12,10 @@
 namespace ctranslate2 { class Translator; }
 namespace sentencepiece { class SentencePieceProcessor; }
 
+#ifdef YIPOS_HAS_MECAB
+namespace YipOS { class MeCabWrapper; }
+#endif
+
 namespace YipOS {
 
 class TranslationWorker {
@@ -60,6 +64,9 @@ private:
 
     std::unique_ptr<ctranslate2::Translator> translator_;
     std::unique_ptr<sentencepiece::SentencePieceProcessor> tokenizer_;
+#ifdef YIPOS_HAS_MECAB
+    std::unique_ptr<MeCabWrapper> mecab_;
+#endif
     std::atomic<bool> model_loaded_{false};
     std::string device_name_{"CPU"};
     std::string model_dir_;  // For CUDA→CPU fallback

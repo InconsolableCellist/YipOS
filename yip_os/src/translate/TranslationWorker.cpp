@@ -1,6 +1,9 @@
 #include "TranslationWorker.hpp"
 #include "core/Logger.hpp"
 #include "core/PathUtils.hpp"
+#ifdef YIPOS_HAS_MECAB
+#include "translate/MeCabWrapper.hpp"
+#endif
 
 #include <ctranslate2/translator.h>
 #include <sentencepiece_processor.h>
@@ -121,6 +124,17 @@ bool TranslationWorker::LoadModel(const std::string& model_dir) {
 
         model_loaded_ = true;
         Logger::Info("NLLB: Model loaded from " + model_dir + " (" + device_name_ + ")");
+
+#ifdef YIPOS_HAS_MECAB
+        mecab_ = std::make_unique<MeCabWrapper>();
+        if (mecab_->Init()) {
+            Logger::Info("NLLB: MeCab available for Japanese kanji→hiragana");
+        } else {
+            mecab_.reset();
+            Logger::Warning("NLLB: MeCab unavailable — Japanese kanji will display as '?'");
+        }
+#endif
+
         return true;
     } catch (const std::exception& e) {
         Logger::Error("NLLB: Failed to load model: " + std::string(e.what()));
@@ -250,6 +264,13 @@ void TranslationWorker::ProcessLoop() {
             tokenizer_->Decode(text_tokens, &translated);
 
             if (translated.empty()) continue;
+
+#ifdef YIPOS_HAS_MECAB
+            // Convert kanji to hiragana when translating to Japanese
+            if (mecab_ && mecab_->IsAvailable() && req.tgt_lang == "jpn_Jpan") {
+                translated = mecab_->KanjiToHiragana(translated);
+            }
+#endif
 
             Logger::Debug("NLLB: " + req.src_lang + ">" + req.tgt_lang +
                          ": \"" + req.text.substr(0, 40) + "\" -> \"" +
