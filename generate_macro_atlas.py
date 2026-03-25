@@ -760,7 +760,7 @@ def layout_intrp_conf(buf):
 
 def layout_dm(buf):
     """DM conversation list: frame + back arrow + TR select + PAIR button."""
-    buf.put_frame("DM")
+    buf.put_frame("CONVOS")
     buf.put_glyph(0, 1, G_LEFT_A)
     buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
     buf.put_text(1, 6, "PAIR", inverted=True)
@@ -828,7 +828,7 @@ SCREEN_LAYOUTS = {
     35: ("INTRP", layout_intrp),
     36: ("INTRP CONF", layout_intrp_conf),
     # 37: QR TEMPLATE — custom image, pasted from qr_template.png
-    38: ("DM", layout_dm),
+    38: ("CONVOS", layout_dm),
     39: ("DM DTL", layout_dm_detail),
     40: ("DM PAIR", layout_dm_pair),
 }

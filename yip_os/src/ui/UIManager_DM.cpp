@@ -164,8 +164,8 @@ void UIManager::RenderDMTab(PDAController& pda, Config& config) {
         // Last message preview
         if (!s.messages.empty()) {
             auto& last = s.messages[0];
-            std::string preview = last.text;
-            if (preview.size() > 40) preview = preview.substr(0, 37) + "...";
+            std::string preview = last.from_name + ": " + last.text;
+            if (preview.size() > 50) preview = preview.substr(0, 47) + "...";
             ImGui::SameLine(150);
             ImGui::TextDisabled("%s", preview.c_str());
         }

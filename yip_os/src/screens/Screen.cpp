@@ -119,11 +119,17 @@ void Screen::RenderStatusIcons() {
     } else {
         display_.WriteGlyph(2, 7, G_HLINE);
     }
-    // Col 3: notification indicator (VRCX notifs OR chat/DM unseen)
-    if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached() || pda_.HasUnseenDMCached()) {
+    // Col 3: notification indicator (VRCX notifs OR chat unseen)
+    if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached()) {
         display_.WriteGlyph(3, 7, G_BULLET);
     } else {
         display_.WriteGlyph(3, 7, G_HLINE);
+    }
+    // Col 4: DM unseen indicator
+    if (pda_.HasUnseenDMCached()) {
+        display_.WriteChar(4, 7, static_cast<int>('!'));
+    } else {
+        display_.WriteGlyph(4, 7, G_HLINE);
     }
 }
 

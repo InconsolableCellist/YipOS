@@ -13,6 +13,7 @@ public:
 
     void Render() override;
     void RenderDynamic() override;
+    void Update() override;
     bool OnInput(const std::string& key) override;
 
 protected:

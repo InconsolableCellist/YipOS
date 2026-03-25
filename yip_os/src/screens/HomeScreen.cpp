@@ -35,7 +35,7 @@ void HomeScreen::RenderContent() {
 }
 
 void HomeScreen::RenderDynamic() {
-    // Notification indicators only on page 0
+    // Notification indicators — page-specific
     if (page_ == 0) {
         // VRCX tile (1,0): show "*" indicator when unseen notifications exist
         if (pda_.HasUnseenNotifs()) {
@@ -49,6 +49,13 @@ void HomeScreen::RenderDynamic() {
             display_.WriteChar(38, ZONE_ROWS[1], static_cast<int>('*') + INVERT_OFFSET);
         } else {
             display_.WriteChar(38, ZONE_ROWS[1], static_cast<int>(' '));
+        }
+    } else if (page_ == 1) {
+        // DM tile (0,4): show "!" indicator when unseen DMs exist
+        if (pda_.HasUnseenDMCached()) {
+            display_.WriteChar(38, ZONE_ROWS[0], static_cast<int>('!') + INVERT_OFFSET);
+        } else {
+            display_.WriteChar(38, ZONE_ROWS[0], static_cast<int>(' '));
         }
     }
 

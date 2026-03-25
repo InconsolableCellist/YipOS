@@ -11,12 +11,9 @@ namespace YipOS {
 using namespace Glyphs;
 
 DMScreen::DMScreen(PDAController& pda) : ListScreen(pda) {
-    name = "DM";
+    name = "CONVOS";
     macro_index = 38;
     RefreshSessions();
-
-    // Mark all DM as seen when entering the screen
-    pda_.MarkDMSeen();
 }
 
 void DMScreen::RefreshSessions() {
@@ -49,12 +46,10 @@ void DMScreen::RenderRow(int i, bool selected) {
 
     auto* session = sessions_[idx];
 
-    char indicator = session->has_unseen ? '*' : ' ';
+    char indicator = session->has_unseen ? '!' : ' ';
 
-    // Peer name (truncated to 8 chars)
+    // Peer name — show full name, truncated only by available space
     std::string peer = session->peer_name;
-    if (static_cast<int>(peer.size()) > 8)
-        peer = peer.substr(0, 8);
 
     // Last message preview
     std::string preview;
@@ -108,7 +103,7 @@ void DMScreen::WriteSelectionMark(int i, bool selected) {
 
     auto* session = sessions_[idx];
     char chars[3];
-    chars[0] = session->has_unseen ? '*' : ' ';
+    chars[0] = session->has_unseen ? '!' : ' ';
     chars[1] = session->peer_name.size() > 0 ? session->peer_name[0] : ' ';
     chars[2] = session->peer_name.size() > 1 ? session->peer_name[1] : ' ';
 

@@ -14,15 +14,16 @@ using namespace Glyphs;
 DMDetailScreen::DMDetailScreen(PDAController& pda) : ListScreen(pda) {
     name = "DM_DTL";
     macro_index = 39;
-    handle_back = true;
+    update_interval = 5.0f;
 
     session_id_ = pda_.GetSelectedDMSession();
     auto* session = pda_.GetDMClient().GetSession(session_id_);
     if (session) {
         peer_name_ = session->peer_name;
-        // Mark seen
+        // Mark seen — clear per-session flag + refresh global cache
         if (!session->messages.empty()) {
             pda_.GetDMClient().MarkSessionSeen(session_id_, session->messages[0].date);
+            pda_.MarkDMSeen();
         }
     }
     RefreshMessages();
@@ -42,14 +43,17 @@ void DMDetailScreen::RenderEmpty() {
 }
 
 void DMDetailScreen::Render() {
-    // Override title to show peer name
-    std::string saved_name = name;
-    name = peer_name_.empty() ? "DM" : peer_name_;
     ListScreen::Render();
-    name = saved_name;
 }
 
 void DMDetailScreen::RenderDynamic() {
+    // Write peer name into title bar (overwriting macro's "DM")
+    if (!peer_name_.empty()) {
+        std::string title = peer_name_;
+        if (static_cast<int>(title.size()) > 20)
+            title = title.substr(0, 20);
+        display_.WriteText(0, 0, title);
+    }
     ListScreen::RenderDynamic();
 }
 
@@ -62,10 +66,8 @@ void DMDetailScreen::RenderRow(int i, bool selected) {
     auto& msg = messages_[idx];
     int max_w = COLS - 2;
 
-    // Format: "You: text" or "PeerName: text" + timestamp right-aligned
-    std::string sender = msg.is_mine ? "You" : msg.from_name;
-    if (static_cast<int>(sender.size()) > 6)
-        sender = sender.substr(0, 6);
+    // Format: "YOU: text" or "THEM: text" + timestamp right-aligned
+    std::string sender = msg.is_mine ? "YOU" : "THEM";
 
     std::string text = msg.text;
     for (auto& ch : text) {
@@ -101,16 +103,29 @@ void DMDetailScreen::WriteSelectionMark(int i, bool selected) {
     if (idx >= static_cast<int>(messages_.size())) return;
 
     auto& msg = messages_[idx];
-    std::string sender = msg.is_mine ? "You" : msg.from_name;
+    std::string sender = msg.is_mine ? "YOU" : "THE";
     char chars[3];
-    chars[0] = sender.size() > 0 ? sender[0] : ' ';
-    chars[1] = sender.size() > 1 ? sender[1] : ' ';
-    chars[2] = sender.size() > 2 ? sender[2] : ' ';
+    chars[0] = sender[0];
+    chars[1] = sender[1];
+    chars[2] = sender[2];
 
     for (int c = 0; c < 3; c++) {
         int ch = static_cast<int>(chars[c]);
         if (selected) ch += INVERT_OFFSET;
         display_.WriteChar(1 + c, row, ch);
+    }
+}
+
+void DMDetailScreen::Update() {
+    int old_count = static_cast<int>(messages_.size());
+    RefreshMessages();
+    if (static_cast<int>(messages_.size()) != old_count) {
+        // Mark seen immediately — no "!" since we're already viewing
+        if (!messages_.empty()) {
+            pda_.GetDMClient().MarkSessionSeen(session_id_, messages_[0].date);
+            pda_.MarkDMSeen();
+        }
+        pda_.StartRender(this);
     }
 }
 

@@ -433,15 +433,37 @@ void PDAController::UpdateClock() {
     } else {
         display_.WriteGlyph(3, 7, G_HLINE);
     }
+    // Col 4: DM unseen indicator
+    if (has_unseen_dm_) {
+        display_.WriteChar(4, 7, static_cast<int>('!'));
+    } else {
+        display_.WriteGlyph(4, 7, G_HLINE);
+    }
 
     // Per-screen live indicators (written at 1Hz so they update without full refresh)
     if (s) {
         if (s->name == "HOME") {
-            // CHAT tile [1][4] — "*" at col 38, row 4 (ZONE_ROWS[1])
-            if (has_unseen_chat_) {
-                display_.WriteChar(38, ZONE_ROWS[1], static_cast<int>('*') + INVERT_OFFSET);
-            } else {
-                display_.WriteChar(38, ZONE_ROWS[1], static_cast<int>(' '));
+            auto* home = static_cast<HomeScreen*>(s);
+            if (home->GetPage() == 0) {
+                // VRCX tile [1][0] — "*" at col 6, row 4
+                if (has_unseen_notifs_) {
+                    display_.WriteChar(6, ZONE_ROWS[1], static_cast<int>('*') + INVERT_OFFSET);
+                } else {
+                    display_.WriteChar(6, ZONE_ROWS[1], static_cast<int>(' '));
+                }
+                // CHAT tile [1][4] — "*" at col 38, row 4
+                if (has_unseen_chat_) {
+                    display_.WriteChar(38, ZONE_ROWS[1], static_cast<int>('*') + INVERT_OFFSET);
+                } else {
+                    display_.WriteChar(38, ZONE_ROWS[1], static_cast<int>(' '));
+                }
+            } else if (home->GetPage() == 1) {
+                // DM tile [0][4] — "!" at col 38, row 1
+                if (has_unseen_dm_) {
+                    display_.WriteChar(38, ZONE_ROWS[0], static_cast<int>('!') + INVERT_OFFSET);
+                } else {
+                    display_.WriteChar(38, ZONE_ROWS[0], static_cast<int>(' '));
+                }
             }
         }
         else if (s->name == "CHAT" && has_unseen_chat_) {
@@ -664,7 +686,7 @@ void PDAController::RefreshDMCache() {
 }
 
 void PDAController::MarkDMSeen() {
-    has_unseen_dm_ = false;
+    has_unseen_dm_ = dm_client_->HasUnseen();
 }
 
 void PDAController::SaveDMSessions() {

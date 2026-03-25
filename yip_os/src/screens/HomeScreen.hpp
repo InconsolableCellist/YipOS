@@ -15,6 +15,7 @@ public:
     void RenderDynamic() override;
     bool OnInput(const std::string& key) override;
     void Update() override;
+    int GetPage() const { return page_; }
 
 private:
     void WriteTile(int tx, int ty);
