@@ -26,7 +26,6 @@ protected:
 private:
     void RefreshSessions();
     static std::string FormatRelativeTime(int64_t date);
-    void RenderPairButton();
 
     std::vector<const DMSession*> sessions_;
 };

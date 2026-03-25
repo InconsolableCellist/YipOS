@@ -12,7 +12,7 @@ using namespace Glyphs;
 
 DMScreen::DMScreen(PDAController& pda) : ListScreen(pda) {
     name = "DM";
-    macro_index = -1;  // no macro yet — character-by-character render
+    macro_index = 38;
     RefreshSessions();
 
     // Mark all DM as seen when entering the screen
@@ -35,22 +35,10 @@ void DMScreen::RenderEmpty() {
 
 void DMScreen::Render() {
     ListScreen::Render();
-    display_.WriteGlyph(0, 1, G_LEFT_A);
-    RenderPairButton();
 }
 
 void DMScreen::RenderDynamic() {
     ListScreen::RenderDynamic();
-    display_.WriteGlyph(0, 1, G_LEFT_A);
-}
-
-void DMScreen::RenderPairButton() {
-    // Bottom-left of content area: "PAIR" as inverted touchable text
-    // Row 6, col 1 — mirrors the pattern of touchable labels
-    std::string label = "PAIR";
-    for (int i = 0; i < static_cast<int>(label.size()); i++) {
-        display_.WriteChar(1 + i, 6, static_cast<int>(label[i]) + INVERT_OFFSET);
-    }
 }
 
 void DMScreen::RenderRow(int i, bool selected) {

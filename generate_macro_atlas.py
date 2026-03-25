@@ -758,6 +758,37 @@ def layout_intrp_conf(buf):
     buf.put_status_bar()
 
 
+def layout_dm(buf):
+    """DM conversation list: frame + back arrow + TR select + PAIR button."""
+    buf.put_frame("DM")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    buf.put_text(1, 6, "PAIR", inverted=True)
+    buf.put_status_bar()
+
+
+def layout_dm_detail(buf):
+    """DM message thread: frame (title overridden at runtime) + back arrow."""
+    buf.put_frame("DM")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_status_bar()
+
+
+def layout_dm_pair(buf):
+    """DM Pair CHOOSE mode: frame + DIAL/SCAN buttons + hint text."""
+    buf.put_frame("DM PAIR")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_text(2, 1, "Pair with a friend")
+    # DIAL — contact 12 (col 1, row 2)
+    buf.put_text(2, 4, "DIAL", inverted=True)
+    buf.put_text(2, 5, "Show QR")
+    # SCAN — contact 52 (col 5, row 2)
+    buf.put_text(34, 4, "SCAN", inverted=True)
+    buf.put_text(33, 5, "Read QR")
+    buf.put_text(2, 6, "(Or use desktop UI)")
+    buf.put_status_bar()
+
+
 SCREEN_LAYOUTS = {
     0: ("HOME", layout_home),
     1: ("STATS", layout_stats),
@@ -796,6 +827,10 @@ SCREEN_LAYOUTS = {
     34: ("TWTCH DTL", layout_twtch_detail),
     35: ("INTRP", layout_intrp),
     36: ("INTRP CONF", layout_intrp_conf),
+    # 37: QR TEMPLATE — custom image, pasted from qr_template.png
+    38: ("DM", layout_dm),
+    39: ("DM DTL", layout_dm_detail),
+    40: ("DM PAIR", layout_dm_pair),
 }
 
 

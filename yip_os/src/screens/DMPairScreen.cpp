@@ -21,7 +21,7 @@ static double MonotonicNow() {
 
 DMPairScreen::DMPairScreen(PDAController& pda) : Screen(pda) {
     name = "DM_PAIR";
-    macro_index = -1;
+    macro_index = 40;
     handle_back = true;  // we handle TL ourselves in OnInput
     update_interval = 1.0f;
 }
@@ -60,24 +60,7 @@ void DMPairScreen::RenderContent() {
 
     switch (mode_) {
     case Mode::CHOOSE:
-        d.WriteGlyph(0, 1, G_LEFT_A);
-        d.WriteText(2, 1, "Pair with a friend");
-        {
-            // DIAL — contact 12 (col 4, row 5) → place at col 2, row 4
-            std::string label = "DIAL";
-            for (int i = 0; i < static_cast<int>(label.size()); i++)
-                d.WriteChar(2 + i, 4, static_cast<int>(label[i]) + INVERT_OFFSET);
-            d.WriteText(2, 5, "Show QR");
-        }
-        {
-            // SCAN — contact 52 (col 36, row 5) → place at col 34, row 4
-            std::string label = "SCAN";
-            for (int i = 0; i < static_cast<int>(label.size()); i++)
-                d.WriteChar(34 + i, 4, static_cast<int>(label[i]) + INVERT_OFFSET);
-            d.WriteText(33, 5, "Read QR");
-        }
-        d.WriteText(2, 6, "(Or use desktop UI)");
-        break;
+        break;  // all static content is in macro 40
 
     case Mode::CREATING:
         d.WriteText(2, 3, "Creating session...");
@@ -144,8 +127,9 @@ void DMPairScreen::StartQRRender() {
     QRGen qr;
     if (!qr.Encode(code_)) {
         Logger::Warning("DMPair: QR encode failed for code " + code_);
-        mode_ = Mode::SHOW_CODE;
-        pda_.StartRender(this);
+        mode_ = Mode::FAILED;
+        error_ = "QR encode failed";
+        RequestRender();
         return;
     }
 
@@ -167,6 +151,13 @@ void DMPairScreen::StartQRRender() {
     skip_clock = true;
     Logger::Info("DMPair: QR render started (" +
                  std::to_string(modules.size()) + " data writes)");
+}
+
+void DMPairScreen::RequestRender() {
+    // Set macro_index based on current mode so StartRender does the right thing:
+    // CHOOSE uses macro 40 (static layout), all other modes use -1 (dynamic Render)
+    macro_index = (mode_ == Mode::CHOOSE) ? CHOOSE_MACRO : -1;
+    RequestRender();
 }
 
 void DMPairScreen::WriteCodeOverlay() {
@@ -299,7 +290,7 @@ void DMPairScreen::Update() {
             skip_clock = false;
             mode_ = Mode::FAILED;
             error_ = "Code expired";
-            pda_.StartRender(this);
+            RequestRender();
             return;
         }
 
@@ -314,7 +305,7 @@ void DMPairScreen::Update() {
                     peer_name_ = peer;
                     skip_clock = false;
                     mode_ = Mode::JOINED;
-                    pda_.StartRender(this);
+                    RequestRender();
                     return;
                 }
             }
@@ -359,7 +350,7 @@ void DMPairScreen::Update() {
             StopScanning();
             // Auto-join with scanned code
             mode_ = Mode::JOINING;
-            pda_.StartRender(this);
+            RequestRender();
 
             std::string sid, peer;
             if (client.PairJoin(code, sid, peer)) {
@@ -377,7 +368,7 @@ void DMPairScreen::Update() {
                 mode_ = Mode::FAILED;
                 error_ = "Invalid or expired code";
             }
-            pda_.StartRender(this);
+            RequestRender();
         }
     }
 
@@ -391,18 +382,18 @@ void DMPairScreen::Update() {
             client.AddSession(session_id_, "", peer_name_);
             pda_.SaveDMSessions();
             info.state = PairState::IDLE;
-            pda_.StartRender(this);
+            RequestRender();
         } else if (info.state == PairState::JOINED) {
             session_id_ = info.session_id;
             peer_name_ = info.peer_name;
             mode_ = Mode::JOINED;
             info.state = PairState::IDLE;
-            pda_.StartRender(this);
+            RequestRender();
         } else if (info.state == PairState::FAILED) {
             error_ = info.error;
             mode_ = Mode::FAILED;
             info.state = PairState::IDLE;
-            pda_.StartRender(this);
+            RequestRender();
         }
     }
 }
@@ -422,7 +413,7 @@ bool DMPairScreen::OnInput(const std::string& key) {
             display_.SetTextMode();
             skip_clock = false;
             mode_ = Mode::CHOOSE;
-            pda_.StartRender(this);
+            RequestRender();
             return true;
         }
         if (mode_ == Mode::SCANNING) {
@@ -438,7 +429,7 @@ bool DMPairScreen::OnInput(const std::string& key) {
         // DIAL touch — contact 12 (col 1, row 2, near display row 4)
         if (key == "12") {
             mode_ = Mode::CREATING;
-            pda_.StartRender(this);
+            RequestRender();
 
             std::string code, sid;
             if (client.PairCreate(code, sid)) {
@@ -451,14 +442,14 @@ bool DMPairScreen::OnInput(const std::string& key) {
                 mode_ = Mode::FAILED;
                 error_ = "Network error";
             }
-            pda_.StartRender(this);
+            RequestRender();
             return true;
         }
         // SCAN touch — contact 52 (col 5, row 2, right side)
         if (key == "52") {
             mode_ = Mode::SCANNING;
             StartScanning();
-            pda_.StartRender(this);
+            RequestRender();
             return true;
         }
     }
@@ -468,7 +459,7 @@ bool DMPairScreen::OnInput(const std::string& key) {
         if (key == "12" || key == "52") {
             StopScanning();
             mode_ = Mode::CHOOSE;
-            pda_.StartRender(this);
+            RequestRender();
             return true;
         }
     }
@@ -484,7 +475,7 @@ bool DMPairScreen::OnInput(const std::string& key) {
                 mode_ = Mode::FAILED;
                 error_ = "Confirm failed";
             }
-            pda_.StartRender(this);
+            RequestRender();
             return true;
         }
     }
@@ -494,7 +485,7 @@ bool DMPairScreen::OnInput(const std::string& key) {
         if (key == "12" || key == "53") {
             mode_ = Mode::CHOOSE;
             error_.clear();
-            pda_.StartRender(this);
+            RequestRender();
             return true;
         }
     }

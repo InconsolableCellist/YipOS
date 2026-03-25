@@ -23,6 +23,7 @@ public:
 
 private:
     void RenderContent();
+    void RequestRender();
     void StartQRRender();
     void WriteCodeOverlay();
     void StartScanning();
@@ -63,6 +64,7 @@ private:
     static constexpr double CODE_TTL = 300.0;
     static constexpr double SCAN_INTERVAL = 2.0;   // seconds between captures
     static constexpr double QR_REFRESH_INTERVAL = 5.0;  // re-send QR + code overlay
+    static constexpr int CHOOSE_MACRO = 40;
     static constexpr int QR_TEMPLATE_MACRO = 37;
 };
 
