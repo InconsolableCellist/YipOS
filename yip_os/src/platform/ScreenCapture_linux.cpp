@@ -2,6 +2,7 @@
 
 #include "ScreenCapture.hpp"
 #include "core/Logger.hpp"
+#include <cstdlib>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
@@ -9,15 +10,26 @@ namespace YipOS {
 
 class ScreenCaptureLinux : public ScreenCapture {
 public:
+    ScreenCaptureLinux() {
+        // X11 root window capture segfaults on Wayland — don't even try
+        if (std::getenv("WAYLAND_DISPLAY")) {
+            Logger::Warning("ScreenCapture: Wayland detected, screen capture not supported");
+            disabled_ = true;
+        }
+    }
+
     ~ScreenCaptureLinux() override {
         if (display_) XCloseDisplay(display_);
     }
 
     bool Capture(Screenshot& out) override {
+        if (disabled_) return false;
+
         if (!display_) {
             display_ = XOpenDisplay(nullptr);
             if (!display_) {
                 Logger::Warning("ScreenCapture: cannot open X display");
+                disabled_ = true;
                 return false;
             }
         }
@@ -31,6 +43,9 @@ public:
         XImage* img = XGetImage(display_, root, 0, 0, w, h, AllPlanes, ZPixmap);
         if (!img) {
             Logger::Warning("ScreenCapture: XGetImage failed");
+            disabled_ = true;
+            XCloseDisplay(display_);
+            display_ = nullptr;
             return false;
         }
 
@@ -45,7 +60,6 @@ public:
                 uint8_t r = (pixel >> 16) & 0xFF;
                 uint8_t g = (pixel >> 8) & 0xFF;
                 uint8_t b = pixel & 0xFF;
-                // Fast luminance approximation: (r + r + g + g + g + b) / 6
                 out.pixels[y * w + x] = static_cast<uint8_t>((r + r + g + g + g + b) / 6);
             }
         }
@@ -56,6 +70,7 @@ public:
 
 private:
     Display* display_ = nullptr;
+    bool disabled_ = false;
 };
 
 std::unique_ptr<ScreenCapture> ScreenCapture::Create() {

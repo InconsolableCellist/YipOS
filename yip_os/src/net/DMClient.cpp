@@ -65,7 +65,10 @@ std::string DMClient::PostJSON(const std::string& path, const std::string& body)
     long http_code = 0;
     curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code < 200 || http_code >= 300) {
-        Logger::Warning("DMClient POST " + path + " HTTP " + std::to_string(http_code));
+        std::string detail = response;
+        if (detail.size() > 200) detail = detail.substr(0, 200) + "...";
+        Logger::Warning("DMClient POST " + path + " HTTP " + std::to_string(http_code) +
+                        ": " + detail);
         return "";
     }
 
@@ -95,7 +98,10 @@ std::string DMClient::Get(const std::string& url) {
     long http_code = 0;
     curl_easy_getinfo(curl_, CURLINFO_RESPONSE_CODE, &http_code);
     if (http_code != 200) {
-        Logger::Warning("DMClient GET " + url + " HTTP " + std::to_string(http_code));
+        std::string detail = response;
+        if (detail.size() > 200) detail = detail.substr(0, 200) + "...";
+        Logger::Warning("DMClient GET " + url + " HTTP " + std::to_string(http_code) +
+                        ": " + detail);
         return "";
     }
 

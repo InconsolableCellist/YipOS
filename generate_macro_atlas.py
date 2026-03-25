@@ -785,7 +785,7 @@ def layout_dm_pair(buf):
     # SCAN — contact 52 (col 5, row 2)
     buf.put_text(34, 4, "SCAN", inverted=True)
     buf.put_text(33, 5, "Read QR")
-    buf.put_text(2, 6, "(Or use desktop UI)")
+    buf.put_text(2, 6, "or pair in desktop UI")
     buf.put_status_bar()
 
 

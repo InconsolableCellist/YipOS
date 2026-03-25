@@ -39,10 +39,11 @@ void DMPairScreen::Render() {
     if (mode_ == Mode::RENDERING_QR) {
         StartQRRender();
     } else if (mode_ == Mode::SHOW_CODE) {
-        // Don't do a full render — the QR is on screen.
-        // Update() manages the periodic QR + code overlay refresh.
+        // QR is on screen, Update() manages refresh.
     } else {
+        // Non-CHOOSE dynamic modes: draw frame + content manually
         RenderFrame("DM PAIR");
+        display_.WriteGlyph(0, 1, G_LEFT_A);
         RenderContent();
         RenderStatusBar();
     }
@@ -75,11 +76,6 @@ void DMPairScreen::RenderContent() {
     case Mode::SCANNING:
         d.WriteText(2, 2, "Scanning for QR...");
         d.WriteText(2, 4, "Look at friend's CRT");
-        {
-            std::string label = "STOP";
-            for (int i = 0; i < static_cast<int>(label.size()); i++)
-                d.WriteChar(2 + i, 6, static_cast<int>(label[i]) + INVERT_OFFSET);
-        }
         break;
 
     case Mode::JOINED:
@@ -100,7 +96,6 @@ void DMPairScreen::RenderContent() {
     case Mode::COMPLETE:
         d.WriteText(2, 2, "Paired with:");
         d.WriteText(2, 3, peer_name_);
-        d.WriteText(2, 5, "Press BACK to return");
         break;
 
     case Mode::FAILED:
@@ -154,10 +149,10 @@ void DMPairScreen::StartQRRender() {
 }
 
 void DMPairScreen::RequestRender() {
-    // Set macro_index based on current mode so StartRender does the right thing:
-    // CHOOSE uses macro 40 (static layout), all other modes use -1 (dynamic Render)
+    // CHOOSE uses macro 40 (all static content baked in).
+    // All other modes use dynamic Render() since they have different layouts.
     macro_index = (mode_ == Mode::CHOOSE) ? CHOOSE_MACRO : -1;
-    RequestRender();
+    pda_.StartRender(this);
 }
 
 void DMPairScreen::WriteCodeOverlay() {
@@ -449,16 +444,6 @@ bool DMPairScreen::OnInput(const std::string& key) {
         if (key == "52") {
             mode_ = Mode::SCANNING;
             StartScanning();
-            RequestRender();
-            return true;
-        }
-    }
-
-    if (mode_ == Mode::SCANNING) {
-        // STOP touch — either side
-        if (key == "12" || key == "52") {
-            StopScanning();
-            mode_ = Mode::CHOOSE;
             RequestRender();
             return true;
         }
