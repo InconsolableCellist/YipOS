@@ -51,16 +51,18 @@ public:
 
         out.width = w;
         out.height = h;
-        out.pixels.resize(w * h);
+        size_t total = static_cast<size_t>(w) * h;
+        out.pixels_r.resize(total);
+        out.pixels_g.resize(total);
+        out.pixels_b.resize(total);
 
-        // Convert to grayscale
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
                 unsigned long pixel = XGetPixel(img, x, y);
-                uint8_t r = (pixel >> 16) & 0xFF;
-                uint8_t g = (pixel >> 8) & 0xFF;
-                uint8_t b = pixel & 0xFF;
-                out.pixels[y * w + x] = static_cast<uint8_t>((r + r + g + g + g + b) / 6);
+                size_t idx = y * w + x;
+                out.pixels_r[idx] = (pixel >> 16) & 0xFF;
+                out.pixels_g[idx] = (pixel >> 8) & 0xFF;
+                out.pixels_b[idx] = pixel & 0xFF;
             }
         }
 

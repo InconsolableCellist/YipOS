@@ -209,10 +209,22 @@ void DMPairScreen::StartScanning() {
                           " (" + std::to_string(shot.width) + "x" +
                           std::to_string(shot.height) + ")");
 
+            // Build grayscale variants from captured RGB channels.
+            // Different CRT phosphor colors can kill contrast in standard
+            // luminance conversion (e.g. red-on-white), so we also try
+            // each individual channel.  The channel with the most contrast
+            // between QR modules and background will decode successfully.
+            std::vector<uint8_t> gray_lum;
+            shot.ToGrayscale(gray_lum);
+            const std::vector<uint8_t>* gray_modes[] = {
+                &gray_lum, &shot.pixels_r, &shot.pixels_g, &shot.pixels_b
+            };
+            static const char* gray_names[] = { "lum", "R", "G", "B" };
+
             // Try decoding at multiple vertical scales. The CRT mesh stretches
             // the render texture non-uniformly, so the captured QR may be
             // squashed/stretched.  Rescale along Y and try each pass.
-            // 1.0 = baseline, 0.5 = squish 2x (if QR appears tall), 2.0 = stretch
+            // For each scale, try all grayscale modes before moving on.
             static constexpr float Y_SCALES[] = { 1.0f, 0.5f, 2.0f, 0.75f, 1.5f };
             std::string found_code;
             for (float y_scale : Y_SCALES) {
@@ -224,44 +236,47 @@ void DMPairScreen::StartScanning() {
                     continue;
                 }
 
-                int w, h;
-                uint8_t* buf = quirc_begin(q, &w, &h);
-                // Nearest-neighbour vertical resample, X unchanged
-                int copy_w = std::min(w, shot.width);
-                for (int y = 0; y < h; y++) {
-                    int src_y = static_cast<int>(y / y_scale);
-                    if (src_y >= shot.height) src_y = shot.height - 1;
-                    std::memcpy(buf + y * w, shot.pixels.data() + src_y * shot.width, copy_w);
-                }
-                quirc_end(q);
+                for (int gm = 0; gm < 4; gm++) {
+                    const auto& src_pixels = *gray_modes[gm];
 
-                int count = quirc_count(q);
-                if (count > 0) {
-                    Logger::Debug("DMPair: quirc @y_scale=" + std::to_string(y_scale) +
-                                  " found " + std::to_string(count) + " candidate(s)");
-                }
-                for (int i = 0; i < count; i++) {
-                    struct quirc_code qc;
-                    struct quirc_data qd;
-                    quirc_extract(q, i, &qc);
-                    quirc_decode_error_t err = quirc_decode(&qc, &qd);
-                    if (err == QUIRC_SUCCESS) {
-                        std::string payload(reinterpret_cast<const char*>(qd.payload),
-                                            qd.payload_len);
-                        Logger::Info("DMPair: decoded payload @y_scale=" +
-                                     std::to_string(y_scale) + ": \"" + payload + "\"");
-                        if (payload.size() == 6) {
-                            bool all_digits = true;
-                            for (char c : payload) {
-                                if (c < '0' || c > '9') { all_digits = false; break; }
-                            }
-                            if (all_digits) { found_code = payload; break; }
-                        }
-                    } else {
-                        Logger::Debug("DMPair: decode error @y_scale=" +
-                                      std::to_string(y_scale) + ": " +
-                                      std::string(quirc_strerror(err)));
+                    int w, h;
+                    uint8_t* buf = quirc_begin(q, &w, &h);
+                    int copy_w = std::min(w, shot.width);
+                    for (int y = 0; y < h; y++) {
+                        int src_y = static_cast<int>(y / y_scale);
+                        if (src_y >= shot.height) src_y = shot.height - 1;
+                        std::memcpy(buf + y * w,
+                                    src_pixels.data() + src_y * shot.width, copy_w);
                     }
+                    quirc_end(q);
+
+                    int count = quirc_count(q);
+                    if (count > 0) {
+                        Logger::Debug("DMPair: quirc @y=" + std::to_string(y_scale) +
+                                      " ch=" + gray_names[gm] +
+                                      " found " + std::to_string(count) + " candidate(s)");
+                    }
+                    for (int i = 0; i < count; i++) {
+                        struct quirc_code qc;
+                        struct quirc_data qd;
+                        quirc_extract(q, i, &qc);
+                        quirc_decode_error_t err = quirc_decode(&qc, &qd);
+                        if (err == QUIRC_SUCCESS) {
+                            std::string payload(reinterpret_cast<const char*>(qd.payload),
+                                                qd.payload_len);
+                            Logger::Info("DMPair: decoded @y=" +
+                                         std::to_string(y_scale) + " ch=" +
+                                         gray_names[gm] + ": \"" + payload + "\"");
+                            if (payload.size() == 6) {
+                                bool all_digits = true;
+                                for (char c : payload) {
+                                    if (c < '0' || c > '9') { all_digits = false; break; }
+                                }
+                                if (all_digits) { found_code = payload; break; }
+                            }
+                        }
+                    }
+                    if (!found_code.empty()) break;
                 }
                 if (!found_code.empty()) break;
             }

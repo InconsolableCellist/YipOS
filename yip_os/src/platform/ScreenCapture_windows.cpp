@@ -70,16 +70,19 @@ public:
         int h = static_cast<int>(desc.Height);
         out.width = w;
         out.height = h;
-        out.pixels.resize(w * h);
+        size_t total = static_cast<size_t>(w) * h;
+        out.pixels_r.resize(total);
+        out.pixels_g.resize(total);
+        out.pixels_b.resize(total);
 
         uint8_t* src = static_cast<uint8_t*>(mapped.pData);
         for (int y = 0; y < h; y++) {
             uint8_t* row = src + y * mapped.RowPitch;
             for (int x = 0; x < w; x++) {
-                uint8_t b = row[x * 4 + 0];
-                uint8_t g = row[x * 4 + 1];
-                uint8_t r = row[x * 4 + 2];
-                out.pixels[y * w + x] = static_cast<uint8_t>((r + r + g + g + g + b) / 6);
+                size_t idx = y * w + x;
+                out.pixels_b[idx] = row[x * 4 + 0];
+                out.pixels_g[idx] = row[x * 4 + 1];
+                out.pixels_r[idx] = row[x * 4 + 2];
             }
         }
 
