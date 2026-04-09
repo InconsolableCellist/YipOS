@@ -191,11 +191,37 @@ void DMComposeScreen::RenderDynamic() {
 }
 
 void DMComposeScreen::RedrawText() {
-    // Defer to the controller's normal render path: CancelBuffered → ClearScreen
-    // → macro stamp → SetTextMode → BeginBuffered → RenderDynamic().  Using the
-    // same flow as every other screen avoids the mode-transition race that
-    // produced off-center write-head flashes when we stamped inline.
-    pda_.StartRender(this);
+    // Incremental update: only rewrite the text rows (2-5) in-place.
+    // The macro frame, peer name, and button labels don't change during
+    // composition, so avoid the full ClearScreen + StampMacro cycle that
+    // causes a visible ~400ms blank flash.
+    display_.CancelBuffered();
+    display_.BeginBuffered();
+
+    // Clear text rows with spaces
+    for (int row = TEXT_FIRST_ROW; row <= TEXT_LAST_ROW; row++) {
+        for (int col = 1; col < 1 + LINE_WIDTH; col++) {
+            display_.WriteChar(col, row, 32);
+        }
+    }
+
+    // Write "Listening..." or committed text
+    if (compose_buffer_.empty()) {
+        if (cc_available_) display_.WriteText(1, 2, "Listening...");
+    } else {
+        std::vector<std::string> lines;
+        WordWrap(compose_buffer_, lines);
+        int total_rows = TEXT_LAST_ROW - TEXT_FIRST_ROW + 1;
+        int skip = static_cast<int>(lines.size()) > total_rows
+                       ? static_cast<int>(lines.size()) - total_rows : 0;
+        int row = TEXT_FIRST_ROW;
+        for (int i = skip; i < static_cast<int>(lines.size()) && row <= TEXT_LAST_ROW;
+             i++, row++) {
+            for (int c = 0; c < static_cast<int>(lines[i].size()) && c < LINE_WIDTH; c++) {
+                display_.WriteChar(1 + c, row, static_cast<int>(lines[i][c]));
+            }
+        }
+    }
 }
 
 void DMComposeScreen::UpdateButtonLabel() {
@@ -297,6 +323,13 @@ bool DMComposeScreen::OnInput(const std::string& key) {
     if (key == "53") {
         if (compose_buffer_.empty()) return true;
 
+        // Show immediate feedback before the blocking network call
+        macro_index = -1;  // prevent refresh from re-stamping
+        display_.CancelBuffered();
+        display_.ClearScreen();
+        display_.SetTextMode();
+        display_.WriteText(15, 4, "Sending...");
+
         if (pda_.GetDMClient().SendMessage(session_id_, compose_buffer_)) {
             Logger::Info("DMCompose: sent message (" +
                          std::to_string(compose_buffer_.size()) + " chars)");
@@ -311,10 +344,9 @@ bool DMComposeScreen::OnInput(const std::string& key) {
                 pda_.SaveDMSessions();
             }
 
-            // Show clean "Sent" screen
+            // Show "Sent" confirmation
             flash_ = FlashState::SENT;
             flash_until_ = MonotonicNow() + 1.5;
-            macro_index = -1;  // prevent refresh from re-stamping
             display_.ClearScreen();
             display_.SetTextMode();
             display_.WriteText(18, 4, "Sent");
@@ -322,7 +354,6 @@ bool DMComposeScreen::OnInput(const std::string& key) {
             Logger::Warning("DMCompose: send failed");
             flash_ = FlashState::ERROR;
             flash_until_ = MonotonicNow() + 1.5;
-            macro_index = -1;
             display_.ClearScreen();
             display_.SetTextMode();
             display_.WriteText(14, 4, "Send failed!");
