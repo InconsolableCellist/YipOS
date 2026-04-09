@@ -166,6 +166,14 @@ private:
             &error
         );
 
+        if (!simple_ && !selected_device_id_.empty()) {
+            Logger::Warning("CC: Saved audio device not found (" + selected_device_id_ +
+                            "), falling back to default");
+            selected_device_id_.clear();
+            current_device_name_ = "Default";
+            return InitDevice();  // retry with default
+        }
+
         if (!simple_) {
             Logger::Warning("CC: pa_simple_new failed: " + std::string(pa_strerror(error)));
             return false;

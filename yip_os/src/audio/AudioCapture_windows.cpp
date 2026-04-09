@@ -151,27 +151,35 @@ private:
             MultiByteToWideChar(CP_UTF8, 0, selected_device_id_.c_str(), -1, wid.data(), wlen);
             hr = enumerator->GetDevice(wid.c_str(), &device);
 
-            // Determine if this is a render device (loopback)
-            IMMEndpoint* endpoint = nullptr;
-            if (SUCCEEDED(device->QueryInterface(__uuidof(IMMEndpoint), reinterpret_cast<void**>(&endpoint)))) {
-                EDataFlow flow;
-                endpoint->GetDataFlow(&flow);
-                is_loopback = (flow == eRender);
-                endpoint->Release();
-            }
-
-            // Get friendly name
-            IPropertyStore* props = nullptr;
-            if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props))) {
-                PROPVARIANT name;
-                PropVariantInit(&name);
-                if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &name)) && name.pwszVal) {
-                    int len = WideCharToMultiByte(CP_UTF8, 0, name.pwszVal, -1, nullptr, 0, nullptr, nullptr);
-                    current_device_name_.resize(len - 1);
-                    WideCharToMultiByte(CP_UTF8, 0, name.pwszVal, -1, current_device_name_.data(), len, nullptr, nullptr);
+            if (FAILED(hr) || !device) {
+                Logger::Warning("CC: Saved audio device not found, falling back to default");
+                selected_device_id_.clear();
+                hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
+                is_loopback = true;
+                current_device_name_ = "System Default [Loopback]";
+            } else {
+                // Determine if this is a render device (loopback)
+                IMMEndpoint* endpoint = nullptr;
+                if (SUCCEEDED(device->QueryInterface(__uuidof(IMMEndpoint), reinterpret_cast<void**>(&endpoint)))) {
+                    EDataFlow flow;
+                    endpoint->GetDataFlow(&flow);
+                    is_loopback = (flow == eRender);
+                    endpoint->Release();
                 }
-                PropVariantClear(&name);
-                props->Release();
+
+                // Get friendly name
+                IPropertyStore* props = nullptr;
+                if (SUCCEEDED(device->OpenPropertyStore(STGM_READ, &props))) {
+                    PROPVARIANT name;
+                    PropVariantInit(&name);
+                    if (SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &name)) && name.pwszVal) {
+                        int len = WideCharToMultiByte(CP_UTF8, 0, name.pwszVal, -1, nullptr, 0, nullptr, nullptr);
+                        current_device_name_.resize(len - 1);
+                        WideCharToMultiByte(CP_UTF8, 0, name.pwszVal, -1, current_device_name_.data(), len, nullptr, nullptr);
+                    }
+                    PropVariantClear(&name);
+                    props->Release();
+                }
             }
         }
 
