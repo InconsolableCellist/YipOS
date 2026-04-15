@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(yip_os VERSION 1.1.3 LANGUAGES C CXX)
+project(yip_os VERSION 1.1.4 LANGUAGES C CXX)
 
 # Generate git hash header on every build (not just configure)
 set(YIP_GIT_HASH_HEADER "${CMAKE_BINARY_DIR}/git_hash.h")

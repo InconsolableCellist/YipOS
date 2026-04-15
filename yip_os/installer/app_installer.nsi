@@ -13,11 +13,11 @@
 ;   /DCUDA_FULL      — CUDA CT2, cuBLAS bundled          ~700 MB
 Name "YipOS"
 !ifdef CUDA_FULL
-    OutFile "..\YipOS v1.1.3 Setup (CUDA).exe"
+    OutFile "..\YipOS v1.1.4 Setup (CUDA).exe"
 !else ifdef CUDA_LITE
-    OutFile "..\YipOS v1.1.3 Setup (CUDA Lite).exe"
+    OutFile "..\YipOS v1.1.4 Setup (CUDA Lite).exe"
 !else
-    OutFile "..\YipOS v1.1.3 Setup.exe"
+    OutFile "..\YipOS v1.1.4 Setup.exe"
 !endif
 
 ; Default installation directory
@@ -185,7 +185,7 @@ Section "Install"
     WriteRegStr HKLM "${UNINSTKEY}" "InstallLocation" "$INSTDIR"
     WriteRegStr HKLM "${UNINSTKEY}" "DisplayIcon" "$INSTDIR\yip_os.exe,0"
     WriteRegStr HKLM "${UNINSTKEY}" "Publisher" "Foxipso"
-    WriteRegStr HKLM "${UNINSTKEY}" "DisplayVersion" "1.1.3"
+    WriteRegStr HKLM "${UNINSTKEY}" "DisplayVersion" "1.1.4"
     WriteRegStr HKLM "${UNINSTKEY}" "URLInfoAbout" "https://foxipso.com"
 
     ; Get size of installation directory

@@ -8,8 +8,17 @@
 #include <Audioclient.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <thread>
+#include <sstream>
+#include <iomanip>
 
 namespace YipOS {
+
+static std::string HexStr(HRESULT hr) {
+    std::ostringstream os;
+    os << std::hex << std::setw(8) << std::setfill('0')
+       << static_cast<unsigned int>(hr);
+    return os.str();
+}
 
 class WASAPICapture : public AudioCapture {
 public:
@@ -191,35 +200,112 @@ private:
         hr = device->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr,
                                reinterpret_cast<void**>(&audio_client_));
         if (FAILED(hr)) {
+            Logger::Warning("CC: IAudioClient Activate failed hr=0x" +
+                            HexStr(hr));
             device->Release();
             enumerator->Release();
             return false;
         }
+        Logger::Debug("CC: IAudioClient activated");
 
         WAVEFORMATEX* mix_format = nullptr;
-        audio_client_->GetMixFormat(&mix_format);
-        source_sample_rate_ = mix_format->nSamplesPerSec;
-        source_channels_ = mix_format->nChannels;
-
-        DWORD stream_flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
-        if (is_loopback) stream_flags |= AUDCLNT_STREAMFLAGS_LOOPBACK;
-
-        REFERENCE_TIME buffer_duration = 100000; // 10ms
-        hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED, stream_flags,
-                                        buffer_duration, 0, mix_format, nullptr);
-        CoTaskMemFree(mix_format);
-
-        if (FAILED(hr)) {
+        hr = audio_client_->GetMixFormat(&mix_format);
+        if (FAILED(hr) || !mix_format) {
+            Logger::Warning("CC: GetMixFormat failed hr=0x" + HexStr(hr));
             audio_client_->Release();
             audio_client_ = nullptr;
             device->Release();
             enumerator->Release();
             return false;
         }
+        Logger::Debug("CC: mix format " +
+                      std::to_string(mix_format->nSamplesPerSec) + "Hz " +
+                      std::to_string(mix_format->nChannels) + "ch " +
+                      std::to_string(mix_format->wBitsPerSample) + "bit fmt=" +
+                      std::to_string(mix_format->wFormatTag));
+
+        DWORD stream_flags = AUDCLNT_STREAMFLAGS_EVENTCALLBACK;
+        if (is_loopback) stream_flags |= AUDCLNT_STREAMFLAGS_LOOPBACK;
+
+        // In shared event-driven mode, buffer_duration must be 0.
+        hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED, stream_flags,
+                                        0, 0, mix_format, nullptr);
+
+        // Fallback: if the mix format is rejected (seen with some 96 kHz
+        // devices and exotic driver configurations), try common float32
+        // stereo formats and let the engine pick the closest match.
+        if (FAILED(hr)) {
+            Logger::Warning("CC: Initialize with mix format failed hr=0x" +
+                            HexStr(hr) + " — trying fallback formats");
+
+            static const DWORD kFallbackRates[] = { 48000, 44100, 96000 };
+            for (DWORD rate : kFallbackRates) {
+                WAVEFORMATEX fb{};
+                fb.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+                fb.nChannels = 2;
+                fb.nSamplesPerSec = rate;
+                fb.wBitsPerSample = 32;
+                fb.nBlockAlign = fb.nChannels * fb.wBitsPerSample / 8;
+                fb.nAvgBytesPerSec = fb.nSamplesPerSec * fb.nBlockAlign;
+                fb.cbSize = 0;
+
+                WAVEFORMATEX* closest = nullptr;
+                HRESULT sup = audio_client_->IsFormatSupported(
+                    AUDCLNT_SHAREMODE_SHARED, &fb, &closest);
+                WAVEFORMATEX* use_fmt = (sup == S_OK) ? &fb : closest;
+                if (!use_fmt) {
+                    Logger::Debug("CC: fallback " + std::to_string(rate) +
+                                  "Hz not supported");
+                    continue;
+                }
+
+                hr = audio_client_->Initialize(AUDCLNT_SHAREMODE_SHARED,
+                                               stream_flags, 0, 0, use_fmt, nullptr);
+                if (SUCCEEDED(hr)) {
+                    Logger::Info("CC: fallback format accepted: " +
+                                 std::to_string(use_fmt->nSamplesPerSec) + "Hz " +
+                                 std::to_string(use_fmt->nChannels) + "ch");
+                    CoTaskMemFree(mix_format);
+                    mix_format = nullptr;
+                    // Take ownership of the format we ended up using so we can
+                    // read its fields before clearing.
+                    source_sample_rate_ = use_fmt->nSamplesPerSec;
+                    source_channels_ = use_fmt->nChannels;
+                    if (closest) CoTaskMemFree(closest);
+                    closest = nullptr;
+                    break;
+                }
+                Logger::Debug("CC: fallback " + std::to_string(rate) +
+                              "Hz Initialize failed hr=0x" + HexStr(hr));
+                if (closest) CoTaskMemFree(closest);
+            }
+        } else {
+            source_sample_rate_ = mix_format->nSamplesPerSec;
+            source_channels_ = mix_format->nChannels;
+        }
+
+        if (mix_format) {
+            CoTaskMemFree(mix_format);
+            mix_format = nullptr;
+        }
+
+        if (FAILED(hr)) {
+            Logger::Warning("CC: All Initialize attempts failed, giving up");
+            audio_client_->Release();
+            audio_client_ = nullptr;
+            device->Release();
+            enumerator->Release();
+            return false;
+        }
+        Logger::Debug("CC: IAudioClient initialized (" +
+                      std::to_string(source_sample_rate_) + "Hz " +
+                      std::to_string(source_channels_) + "ch)");
 
         hr = audio_client_->GetService(__uuidof(IAudioCaptureClient),
                                         reinterpret_cast<void**>(&capture_client_));
         if (FAILED(hr)) {
+            Logger::Warning("CC: GetService(IAudioCaptureClient) failed hr=0x" +
+                            HexStr(hr));
             audio_client_->Release();
             audio_client_ = nullptr;
             device->Release();
@@ -228,8 +314,42 @@ private:
         }
 
         capture_event_ = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        audio_client_->SetEventHandle(capture_event_);
-        audio_client_->Start();
+        if (!capture_event_) {
+            Logger::Warning("CC: CreateEvent failed");
+            capture_client_->Release();
+            capture_client_ = nullptr;
+            audio_client_->Release();
+            audio_client_ = nullptr;
+            device->Release();
+            enumerator->Release();
+            return false;
+        }
+        hr = audio_client_->SetEventHandle(capture_event_);
+        if (FAILED(hr)) {
+            Logger::Warning("CC: SetEventHandle failed hr=0x" + HexStr(hr));
+            CloseHandle(capture_event_);
+            capture_event_ = nullptr;
+            capture_client_->Release();
+            capture_client_ = nullptr;
+            audio_client_->Release();
+            audio_client_ = nullptr;
+            device->Release();
+            enumerator->Release();
+            return false;
+        }
+        hr = audio_client_->Start();
+        if (FAILED(hr)) {
+            Logger::Warning("CC: IAudioClient Start failed hr=0x" + HexStr(hr));
+            CloseHandle(capture_event_);
+            capture_event_ = nullptr;
+            capture_client_->Release();
+            capture_client_ = nullptr;
+            audio_client_->Release();
+            audio_client_ = nullptr;
+            device->Release();
+            enumerator->Release();
+            return false;
+        }
 
         device->Release();
         enumerator->Release();
