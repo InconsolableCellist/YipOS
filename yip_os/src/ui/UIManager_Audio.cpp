@@ -25,6 +25,17 @@ void UIManager::RenderCCTab(PDAController& pda, Config& config) {
     auto* audio = pda.GetAudioCapture();
     if (!whisper || !audio) return;
 
+    // Force CPU escape hatch for buggy Vulkan drivers
+    bool force_cpu = config.GetState("cc.force_cpu") == "1";
+    if (ImGui::Checkbox("Force CPU (disable Vulkan)", &force_cpu)) {
+        config.SetState("cc.force_cpu", force_cpu ? "1" : "0");
+        whisper->SetForceCPU(force_cpu);
+    }
+    ImGui::TextDisabled("Enable if CC crashes when loading the model on your GPU.");
+    ImGui::TextDisabled("Takes effect the next time the model is loaded.");
+
+    ImGui::Separator();
+
     // Model
     ImGui::Text("Model");
     if (whisper->IsModelLoaded()) {

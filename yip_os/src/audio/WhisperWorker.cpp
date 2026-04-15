@@ -91,8 +91,11 @@ bool WhisperWorker::LoadModel(const std::string& model_path) {
     // Check Vulkan GPU availability before attempting GPU init.
     // If no Vulkan devices are found, skip straight to CPU to avoid crashes
     // on systems without proper Vulkan drivers.
-    bool try_gpu = true;
-    {
+    bool try_gpu = !force_cpu_;
+    if (force_cpu_) {
+        Logger::Info("CC: Force CPU enabled, skipping GPU init");
+    }
+    if (try_gpu) {
         int vk_devices = ggml_backend_vk_get_device_count();
         if (vk_devices <= 0) {
             Logger::Warning("CC: No Vulkan devices found, using CPU only");

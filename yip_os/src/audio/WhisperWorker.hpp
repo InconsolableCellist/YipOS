@@ -53,6 +53,11 @@ public:
     void SetStripBrackets(bool strip) { strip_brackets_ = strip; }
     bool GetStripBrackets() const { return strip_brackets_; }
 
+    // Force CPU-only init (escape hatch for buggy Vulkan drivers).
+    // Must be called before LoadModel.
+    void SetForceCPU(bool force) { force_cpu_ = force; }
+    bool GetForceCPU() const { return force_cpu_; }
+
     void SetStepMs(int ms) { step_ms_ = (std::max)(2000, (std::min)(ms, 5000)); }
     int GetStepMs() const { return step_ms_; }
     void SetLengthMs(int ms) { length_ms_ = (std::max)(5000, (std::min)(ms, 15000)); }
@@ -76,6 +81,7 @@ private:
     std::string language_ = "en";
     bool language_locked_ = false; // true if SetLanguage() was called explicitly
     std::atomic<bool> strip_brackets_{false};
+    bool force_cpu_ = false;
 
     AudioRingBuffer* audio_buffer_ = nullptr;
     std::thread worker_thread_;

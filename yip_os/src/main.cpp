@@ -207,6 +207,12 @@ int main(int argc, char* argv[]) {
             whisper_worker_loopback.SetStripBrackets(true);
         }
 
+        if (config.GetState("cc.force_cpu") == "1") {
+            whisper_worker.SetForceCPU(true);
+            whisper_worker_loopback.SetForceCPU(true);
+            YipOS::Logger::Info("CC: Force CPU enabled from config");
+        }
+
         // Wire up OSC input handler
         osc.SetInputHandler([&pda](const std::string& address, float value) {
             if (address.find("CRT_Wrist_") != std::string::npos) {
