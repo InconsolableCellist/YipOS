@@ -42,9 +42,13 @@ DMComposeScreen::~DMComposeScreen() {
 }
 
 void DMComposeScreen::StartCC() {
+    Logger::Info("DMCompose: StartCC entry");
     auto* whisper = pda_.GetWhisperWorker();
     auto* audio = pda_.GetAudioCapture();
-    if (!whisper || !audio) return;
+    if (!whisper || !audio) {
+        Logger::Warning("DMCompose: null whisper/audio");
+        return;
+    }
 
     // Already running? Just use it
     if (whisper->IsRunning()) {
@@ -68,24 +72,29 @@ void DMComposeScreen::StartCC() {
         return;
     }
 
-    // Restore saved step/window
-    std::string saved_step = pda_.GetConfig().GetState("cc.step");
-    if (!saved_step.empty()) {
-        whisper->SetStepMs(std::stoi(saved_step));
-    }
-    std::string saved_window = pda_.GetConfig().GetState("cc.window");
-    if (!saved_window.empty()) {
-        whisper->SetLengthMs(std::stoi(saved_window));
+    // Restore saved step/window (guard std::stoi against garbage config)
+    Logger::Info("DMCompose: restoring step/window");
+    try {
+        std::string saved_step = pda_.GetConfig().GetState("cc.step");
+        if (!saved_step.empty()) whisper->SetStepMs(std::stoi(saved_step));
+        std::string saved_window = pda_.GetConfig().GetState("cc.window");
+        if (!saved_window.empty()) whisper->SetLengthMs(std::stoi(saved_window));
+    } catch (const std::exception& e) {
+        Logger::Warning(std::string("DMCompose: step/window parse failed: ") + e.what());
     }
 
-    // Restore saved audio device
     std::string saved_device = pda_.GetConfig().GetState("cc.device");
+    Logger::Info("DMCompose: saved_device='" + saved_device + "'");
     if (!saved_device.empty()) {
         audio->SetDevice(saved_device);
+        Logger::Info("DMCompose: SetDevice returned");
     }
 
+    Logger::Info("DMCompose: calling audio->Start()");
     audio->Start();
+    Logger::Info("DMCompose: audio->Start() returned");
     whisper->Start(audio->GetBuffer());
+    Logger::Info("DMCompose: whisper->Start() returned");
     started_by_screen_ = true;
     cc_available_ = true;
 

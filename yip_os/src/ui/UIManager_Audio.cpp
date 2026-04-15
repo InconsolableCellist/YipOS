@@ -55,8 +55,13 @@ void UIManager::RenderCCTab(PDAController& pda, Config& config) {
                 for (auto& m : available_models) {
                     bool is_selected = (whisper->IsModelLoaded() && whisper->GetModelName() == m);
                     if (ImGui::Selectable(m.c_str(), is_selected)) {
-                        if (whisper->LoadModel(WhisperWorker::DefaultModelPath(m)))
+                        Logger::Info("UI: CC model selected from desktop: " + m);
+                        if (whisper->LoadModel(WhisperWorker::DefaultModelPath(m))) {
                             config.SetState("cc.model", whisper->GetModelName());
+                            Logger::Info("UI: CC model load success, config saved");
+                        } else {
+                            Logger::Warning("UI: CC model load failed: " + m);
+                        }
                     }
                 }
                 ImGui::EndCombo();
