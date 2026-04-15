@@ -45,9 +45,13 @@ CCScreen::~CCScreen() {
 }
 
 void CCScreen::StartCC() {
+    Logger::Info("CC: StartCC entry");
     auto* whisper = pda_.GetWhisperWorker();
     auto* audio = pda_.GetAudioCapture();
-    if (!whisper || !audio) return;
+    if (!whisper || !audio) {
+        Logger::Warning("CC: StartCC null whisper/audio");
+        return;
+    }
 
     // Already running? Don't restart
     if (whisper->IsRunning()) return;
@@ -68,14 +72,15 @@ void CCScreen::StartCC() {
         return;
     }
 
-    // Restore saved step/window
-    std::string saved_step = pda_.GetConfig().GetState("cc.step");
-    if (!saved_step.empty()) {
-        whisper->SetStepMs(std::stoi(saved_step));
-    }
-    std::string saved_window = pda_.GetConfig().GetState("cc.window");
-    if (!saved_window.empty()) {
-        whisper->SetLengthMs(std::stoi(saved_window));
+    // Restore saved step/window (guard std::stoi against garbage config)
+    Logger::Info("CC: restoring step/window");
+    try {
+        std::string saved_step = pda_.GetConfig().GetState("cc.step");
+        if (!saved_step.empty()) whisper->SetStepMs(std::stoi(saved_step));
+        std::string saved_window = pda_.GetConfig().GetState("cc.window");
+        if (!saved_window.empty()) whisper->SetLengthMs(std::stoi(saved_window));
+    } catch (const std::exception& e) {
+        Logger::Warning(std::string("CC: step/window parse failed: ") + e.what());
     }
 
     // Restore saved audio device
