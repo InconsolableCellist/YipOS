@@ -90,10 +90,8 @@ void Logger::Log(Level level, const std::string& message) {
 
     if (initialized_ && logFd_ >= 0) {
         WriteRaw(entry.c_str(), entry.size());
-        // fsync on WARNING+ to guarantee persistence; skip for DEBUG/INFO perf
-        if (level >= Level::WARNING) {
-            posix_fsync(logFd_);
-        }
+        // Always fsync so the last line before a crash reaches disk.
+        posix_fsync(logFd_);
     }
 
     // Always echo to stderr

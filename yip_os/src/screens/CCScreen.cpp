@@ -80,12 +80,17 @@ void CCScreen::StartCC() {
 
     // Restore saved audio device
     std::string saved_device = pda_.GetConfig().GetState("cc.device");
+    Logger::Info("CC: StartCC saved_device='" + saved_device + "'");
     if (!saved_device.empty()) {
         audio->SetDevice(saved_device);
+        Logger::Info("CC: SetDevice returned");
     }
 
+    Logger::Info("CC: calling audio->Start()");
     audio->Start();
+    Logger::Info("CC: audio->Start() returned");
     whisper->Start(audio->GetBuffer());
+    Logger::Info("CC: whisper->Start() returned");
     started_by_screen_ = true;
 
     // Save current settings to NVRAM

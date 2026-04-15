@@ -139,11 +139,18 @@ public:
 
 private:
     bool InitDevice() {
+        Logger::Info("CC: InitDevice entry, saved_id='" + selected_device_id_ + "'");
+
         IMMDeviceEnumerator* enumerator = nullptr;
         HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr,
                                       CLSCTX_ALL, __uuidof(IMMDeviceEnumerator),
                                       reinterpret_cast<void**>(&enumerator));
-        if (FAILED(hr)) return false;
+        if (FAILED(hr) || !enumerator) {
+            Logger::Warning("CC: CoCreateInstance(MMDeviceEnumerator) failed hr=0x" +
+                            HexStr(hr));
+            return false;
+        }
+        Logger::Debug("CC: MMDeviceEnumerator created");
 
         IMMDevice* device = nullptr;
         bool is_loopback = false;
@@ -153,12 +160,21 @@ private:
             hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
             is_loopback = true;
             current_device_name_ = "System Default [Loopback]";
+            Logger::Debug("CC: GetDefaultAudioEndpoint hr=0x" + HexStr(hr));
         } else {
             // Find selected device
             int wlen = MultiByteToWideChar(CP_UTF8, 0, selected_device_id_.c_str(), -1, nullptr, 0);
-            std::wstring wid(wlen - 1, 0);
-            MultiByteToWideChar(CP_UTF8, 0, selected_device_id_.c_str(), -1, wid.data(), wlen);
+            if (wlen <= 0) {
+                Logger::Warning("CC: MultiByteToWideChar sizing failed for device id");
+                enumerator->Release();
+                return false;
+            }
+            std::wstring wid(static_cast<size_t>(wlen - 1), L'\0');
+            MultiByteToWideChar(CP_UTF8, 0, selected_device_id_.c_str(), -1,
+                                wid.data(), wlen);
             hr = enumerator->GetDevice(wid.c_str(), &device);
+            Logger::Debug("CC: GetDevice hr=0x" + HexStr(hr) +
+                          " device=" + (device ? "ok" : "null"));
 
             if (FAILED(hr) || !device) {
                 Logger::Warning("CC: Saved audio device not found, falling back to default");
@@ -166,6 +182,7 @@ private:
                 hr = enumerator->GetDefaultAudioEndpoint(eRender, eConsole, &device);
                 is_loopback = true;
                 current_device_name_ = "System Default [Loopback]";
+                Logger::Debug("CC: Default fallback hr=0x" + HexStr(hr));
             } else {
                 // Determine if this is a render device (loopback)
                 IMMEndpoint* endpoint = nullptr;
