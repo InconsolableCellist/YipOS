@@ -197,9 +197,9 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
     {
         static const char* tab_labels[] = {
             "Status", "OSC", "Display", "VRCX", "CC", "INTRP", "Avatar",
-            "Text", "IMG", "Stocks", "Twitch", "DM", "NVRAM", "Log"
+            "Text", "IMG", "Stocks", "Twitch", "DM", "Shock", "NVRAM", "Log"
         };
-        static constexpr int TAB_COUNT = 14;
+        static constexpr int TAB_COUNT = 15;
         static constexpr int ROW1_COUNT = 7;
 
         ImGuiStyle& style = ImGui::GetStyle();
@@ -243,8 +243,9 @@ void UIManager::Render(PDAController& pda, Config& config, OSCManager& osc) {
         case 9:  RenderStocksTab(pda, config); break;
         case 10: RenderTwitchTab(pda, config); break;
         case 11: RenderDMTab(pda, config); break;
-        case 12: RenderNVRAMTab(pda, config); break;
-        case 13: RenderLogTab(); break;
+        case 12: RenderShockTab(pda, config); break;
+        case 13: RenderNVRAMTab(pda, config); break;
+        case 14: RenderLogTab(); break;
         }
     }
 

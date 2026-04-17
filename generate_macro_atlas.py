@@ -107,7 +107,7 @@ TILE_LABELS = [
 ]
 
 TILE_LABELS_P2 = [
-    ["DBG", "TWTCH", "INTRP", "-----", "DM"],
+    ["DBG", "TWTCH", "INTRP", "SHOCK", "DM"],
     ["-----", "-----", "-----", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
 ]
@@ -806,6 +806,38 @@ def layout_dm_compose(buf):
     buf.put_status_bar()
 
 
+def layout_shock(buf):
+    """Shock control screen: frame + labels + Execute button."""
+    buf.put_frame("SHOCK")
+    
+    # Row 1 (ty=0): Shocker Selection
+    buf.put_text(3, 1, " < ", inverted=True) # tx=0
+    buf.put_text(34, 1, " > ", inverted=True) # tx=4
+    
+    # Row 2: Separator
+    buf.put_hline(2)
+
+    # Row 3: Status
+    buf.put_text(4, 3, "ACTIVE MODE:")
+    
+    # Row 4 (ty=1): Intensity & Duration on same line
+    # tx=0: Int -, tx=2: Int +, tx=3: Dur -, tx=4: Dur +
+    buf.put_text(2, 4, " - ", inverted=True)  # tx=0
+    buf.put_text(16, 4, " + ", inverted=True) # tx=2
+    buf.put_text(24, 4, " - ", inverted=True) # tx=3
+    buf.put_text(34, 4, " + ", inverted=True) # tx=4
+    
+    # Row 5 : Separator
+    buf.put_hline(5)
+
+    # Row 6 (ty=2): Mode & Execute
+    # tx=0-1: MODE button (11 chars), tx=3-4: EXECUTE button (11 chars)
+    buf.put_text(2, 6, " [  MODE   ] ", inverted=True) # tx=0-1
+    buf.put_text(25, 6, " [ EXECUTE ] ", inverted=True) # tx=3-4
+    
+    buf.put_status_bar()
+
+
 def layout_dm_pair(buf):
     """DM Pair CHOOSE mode: frame + DIAL/SCAN buttons + hint text."""
     buf.put_frame("DM PAIR")
@@ -909,6 +941,7 @@ SCREEN_LAYOUTS = {
     45: ("PAIR OK", layout_dm_pair_complete),
     46: ("PAIR FAIL", layout_dm_pair_failed),
     47: ("PAIR JOIN", layout_dm_pair_joined),
+    48: ("SHOCK", layout_shock),
 }
 
 

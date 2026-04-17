@@ -12,6 +12,7 @@
 #include "net/TwitchClient.hpp"
 #include "media/MediaController.hpp"
 #include "platform/SystemStats.hpp"
+#include "net/ShockManager.hpp"
 #include "core/Glyphs.hpp"
 #include "core/Config.hpp"
 #include "core/Logger.hpp"
@@ -96,6 +97,10 @@ PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Confi
             twitch_client_->Connect();
         }
     }
+
+    // Initialize shock manager
+    shock_manager_ = std::make_unique<ShockManager>();
+    shock_manager_->InitFromConfig(config_);
 
     // Push home screen as root
     auto home = std::make_unique<HomeScreen>(*this);

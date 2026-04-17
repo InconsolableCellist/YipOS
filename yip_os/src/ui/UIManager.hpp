@@ -57,6 +57,7 @@ private:
     void RenderTwitchTab(PDAController& pda, Config& config);
     void RenderIMGTab(PDAController& pda, Config& config);
     void RenderDMTab(PDAController& pda, Config& config);
+    void RenderShockTab(PDAController& pda, Config& config);
     void RenderNVRAMTab(PDAController& pda, Config& config);
     void RenderLogTab();
 
@@ -110,6 +111,19 @@ private:
     bool dm_name_initialized_ = false;
     std::array<char, 8> dm_join_code_buf_ = {};
     std::unordered_map<std::string, std::array<char, 256>> dm_compose_bufs_;
+
+    // Shock tab state (OpenShock & PiShock)
+    bool openshock_enabled_ = false;
+    std::array<char, 128> openshock_token_buf_ = {};
+    bool openshock_token_initialized_ = false;
+
+    bool pishock_enabled_ = false;
+    std::array<char, 64> pishock_username_buf_ = {};
+    std::array<char, 128> pishock_apikey_buf_ = {};
+    bool pishock_initialized_ = false;
+
+    float shock_intensity_step_ = 2.5f;
+    int shock_duration_step_ = 100;
 
     // OSC Query server (optional, for status display)
     OSCQueryServer* osc_query_ = nullptr;
