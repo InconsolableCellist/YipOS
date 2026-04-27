@@ -92,15 +92,16 @@ void YCScreen::ComputeCells() {
             desired_[start + i] = anim[i];
     }
 
-    // Rows 1-3: display_text (word-wrapped)
-    if (!data.display_text.empty()) {
-        WordWrap(data.display_text, 1, 3, false);
-    }
-
-    // Rows 4-5: thought (inverted, parenthesized)
-    if (!data.thought.empty()) {
-        std::string thought_str = "(" + data.thought + ")";
-        WordWrap(thought_str, 4, 2, true);
+    // Rows 1-6: utterance (default) or thoughts (SEL toggle, inverted)
+    if (show_thoughts_) {
+        if (!data.thought.empty()) {
+            std::string thought_str = "(" + data.thought + ")";
+            WordWrap(thought_str, 1, TEXT_ROWS - 1, true);
+        }
+    } else {
+        if (!data.display_text.empty()) {
+            WordWrap(data.display_text, 1, TEXT_ROWS - 1, false);
+        }
     }
 }
 
@@ -115,6 +116,33 @@ void YCScreen::FlushDiff() {
             displayed_[idx] = desired_[idx];
         }
     }
+}
+
+// Used when the active text channel's content changes: flash the screen by
+// stamping the YC frame macro (instant full-screen redraw), then queue only
+// the non-space cells of the new content. Avoids the slow per-cell clear that
+// happens when diffing in slow-write mode.
+void YCScreen::FlashAndDraw() {
+    display_.CancelBuffered();
+    display_.SetMacroMode();
+    display_.StampMacro(macro_index);
+    display_.SetTextMode();
+    display_.BeginBuffered();
+
+    // The stamp wiped the screen back to the macro (frame only), so all text
+    // cells are effectively blank now.
+    displayed_.fill(' ');
+
+    for (int idx = 0; idx < TOTAL_CELLS; idx++) {
+        if (desired_[idx] != ' ') {
+            int r = idx / TEXT_COLS;
+            int c = idx % TEXT_COLS;
+            display_.WriteChar(1 + c, 1 + r, desired_[idx]);
+            displayed_[idx] = desired_[idx];
+        }
+    }
+
+    RenderStatusBar();
 }
 
 void YCScreen::FlushRefresh() {
@@ -162,25 +190,52 @@ void YCScreen::Update() {
     thinking_frame_++;
 
     auto* bridge = pda_.GetBridgeClient();
+    bool connected = (bridge && bridge->IsConnected());
     CompanionData data;
     if (bridge) data = bridge->GetData();
 
-    bool changed = (data.display_text != last_display_text_ ||
+    // Only the active text channel matters for redraw.
+    const std::string& active_text = show_thoughts_ ? data.thought : data.display_text;
+    const std::string& last_active = show_thoughts_ ? last_thought_ : last_display_text_;
+
+    bool active_text_changed = (active_text != last_active);
+    bool toggle_changed = (show_thoughts_ != last_show_thoughts_);
+    bool connection_changed = (connected != last_connected_);
+
+    bool changed = (active_text_changed ||
                     data.expression != last_expression_ ||
-                    data.thought != last_thought_ ||
-                    data.thinking != last_thinking_);
+                    data.thinking != last_thinking_ ||
+                    toggle_changed ||
+                    connection_changed);
+
+    if (!changed) {
+        FlushRefresh();
+        return;
+    }
 
     ComputeCells();
+    last_display_text_ = data.display_text;
+    last_expression_ = data.expression;
+    last_thought_ = data.thought;
+    last_thinking_ = data.thinking;
+    last_show_thoughts_ = show_thoughts_;
+    last_connected_ = connected;
 
-    if (changed) {
-        last_display_text_ = data.display_text;
-        last_expression_ = data.expression;
-        last_thought_ = data.thought;
-        last_thinking_ = data.thinking;
-        FlushDiff();
+    // New utterance/thought, channel toggle, or (re)connect: flash the screen
+    // via macro stamp, then draw — instant clear instead of per-cell erase.
+    if (active_text_changed || toggle_changed || connection_changed) {
+        FlashAndDraw();
     } else {
-        FlushRefresh();
+        FlushDiff();
     }
+}
+
+bool YCScreen::OnInput(const std::string& key) {
+    if (key == "TR") {
+        show_thoughts_ = !show_thoughts_;
+        return true;
+    }
+    return false;
 }
 
 } // namespace YipOS

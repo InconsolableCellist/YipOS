@@ -13,11 +13,13 @@ public:
     void Render() override;
     void RenderDynamic() override;
     void Update() override;
+    bool OnInput(const std::string& key) override;
 
 private:
     void ComputeCells();
     void WordWrap(const std::string& text, int start_row, int max_rows, bool invert);
     void FlushDiff();
+    void FlashAndDraw();
     void FlushRefresh();
 
     static constexpr int TEXT_COLS = 38; // COLS - 2 (frame borders)
@@ -31,7 +33,10 @@ private:
     std::string last_expression_;
     std::string last_thought_;
     bool last_thinking_ = false;
-    double last_companion_data_hash_ = 0;
+    bool last_show_thoughts_ = false;
+    bool last_connected_ = false;
+
+    bool show_thoughts_ = false;
 
     int refresh_pos_ = 0;
     static constexpr int REFRESH_CHUNK = 12;

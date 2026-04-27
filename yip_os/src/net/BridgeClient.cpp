@@ -1,6 +1,10 @@
+#ifdef _WIN32
+#define NOMINMAX
+#endif
 #include "BridgeClient.hpp"
 #include "core/Logger.hpp"
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 
