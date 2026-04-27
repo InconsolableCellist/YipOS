@@ -34,6 +34,7 @@ class StockClient;
 class TwitchClient;
 struct TwitchMessage;
 class TranslationWorker;
+class BridgeClient;
 
 class PDAController {
 public:
@@ -90,6 +91,8 @@ public:
     void SetAudioCaptureLoopback(AudioCapture* a) { audio_capture_loopback_ = a; }
     TranslationWorker* GetTranslationWorker() { return translation_worker_; }
     void SetTranslationWorker(TranslationWorker* t) { translation_worker_ = t; }
+    BridgeClient* GetBridgeClient() { return bridge_client_; }
+    void SetBridgeClient(BridgeClient* b) { bridge_client_ = b; }
     VRCAvatarData* GetAvatarData() { return avatar_data_; }
     void SetAvatarData(VRCAvatarData* d) { avatar_data_ = d; }
     void SetSelectedAvatar(const VRCAvatarEntry* a) { selected_avatar_ = a; }
@@ -219,6 +222,7 @@ private:
     WhisperWorker* whisper_worker_loopback_ = nullptr;
     AudioCapture* audio_capture_loopback_ = nullptr;
     TranslationWorker* translation_worker_ = nullptr;
+    BridgeClient* bridge_client_ = nullptr;
     VRCAvatarData* avatar_data_ = nullptr;
     const VRCAvatarEntry* selected_avatar_ = nullptr;
     OSCManager* osc_ = nullptr;

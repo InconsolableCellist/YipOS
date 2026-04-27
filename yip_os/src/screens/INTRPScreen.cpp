@@ -3,6 +3,7 @@
 #include "app/PDADisplay.hpp"
 #include "audio/AudioCapture.hpp"
 #include "audio/WhisperWorker.hpp"
+#include "net/BridgeClient.hpp"
 #ifdef YIPOS_HAS_TRANSLATION
 #include "translate/TranslationWorker.hpp"
 #endif
@@ -128,6 +129,8 @@ void INTRPScreen::StartINTRP() {
     std::string loop_id = audio_loop->GetCurrentDeviceId();
     if (!loop_id.empty()) config.SetState("intrp.loop_device", loop_id);
 
+    if (auto* bc = pda_.GetBridgeClient(); bc && bc->IsConnected())
+        bc->RequestPause({"sys_audio", "sys_whisper", "mic_audio", "mic_whisper"});
     Logger::Info("INTRP: Started (my=" + my_lang + " their=" + their_lang + ")");
 }
 
@@ -160,6 +163,8 @@ void INTRPScreen::StopINTRP() {
     }
 #endif
 
+    if (auto* bc = pda_.GetBridgeClient(); bc && bc->IsConnected())
+        bc->RequestResume({"sys_audio", "sys_whisper", "mic_audio", "mic_whisper"});
     started_by_screen_ = false;
     Logger::Info("INTRP: Stopped");
 }

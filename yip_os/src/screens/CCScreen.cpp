@@ -3,6 +3,7 @@
 #include "app/PDADisplay.hpp"
 #include "audio/AudioCapture.hpp"
 #include "audio/WhisperWorker.hpp"
+#include "net/BridgeClient.hpp"
 #include "core/Config.hpp"
 #include "core/Logger.hpp"
 #include "core/TimeUtil.hpp"
@@ -105,6 +106,8 @@ void CCScreen::StartCC() {
         pda_.GetConfig().SetState("cc.device", dev_id);
     }
 
+    if (auto* bc = pda_.GetBridgeClient(); bc && bc->IsConnected())
+        bc->RequestPause({"mic_audio", "mic_whisper"});
     Logger::Info("CC: Auto-started");
 }
 
@@ -113,6 +116,8 @@ void CCScreen::StopCC() {
     auto* audio = pda_.GetAudioCapture();
     if (whisper && whisper->IsRunning()) whisper->Stop();
     if (audio && audio->IsRunning()) audio->Stop();
+    if (auto* bc = pda_.GetBridgeClient(); bc && bc->IsConnected())
+        bc->RequestResume({"mic_audio", "mic_whisper"});
     started_by_screen_ = false;
     Logger::Info("CC: Auto-stopped");
 }

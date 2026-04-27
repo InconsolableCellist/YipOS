@@ -45,7 +45,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 COPY_DEST_DIR = os.path.join(
     os.path.expanduser("~"),
-    "Documents/3d/unity/Rexipso Dark Test 1/"
+    "Documents/3d/unity/Rexipso Dark Yip-Boi/"
     "Assets/Foxipso/Assets/Yip-Boi/Williams Tube/Textures",
 )
 
@@ -107,7 +107,7 @@ TILE_LABELS = [
 ]
 
 TILE_LABELS_P2 = [
-    ["DBG", "TWTCH", "INTRP", "-----", "DM"],
+    ["DBG", "TWTCH", "INTRP", "YC", "DM"],
     ["-----", "-----", "-----", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
 ]
@@ -860,6 +860,59 @@ def layout_dm_pair_joined(buf):
     buf.put_status_bar()
 
 
+def layout_yc(buf):
+    """YC (Yip Companion) screen: frame + expression row + text area + thought area."""
+    buf.put_frame("YC")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_status_bar()
+
+
+# Expression atlas placeholders — 8 expressions packed per slot.
+# Phase 2 will replace these with actual pixel-art expression glyphs.
+# For now, render the expression name as text in each sub-cell to prove
+# the slots are generated and addressable.
+
+EXPRESSION_NAMES = [
+    "neutral", "happy", "sad", "angry",
+    "surprised", "thinking", "sleepy", "love",
+    "excited", "wink", "playful", "confident",
+    "nervous", "embarrassed", "intrigued", "shocked",
+]
+
+
+def layout_expressions_slot(buf, slot_offset):
+    """Pack 8 expression labels into a 4x2 grid within a single 40x8 cell.
+
+    slot_offset: 0 for expressions 0-7, 8 for expressions 8-15.
+    Layout: 4 columns x 2 rows, each sub-cell is 10 cols x 4 rows.
+    """
+    for i in range(8):
+        expr_idx = slot_offset + i
+        name = EXPRESSION_NAMES[expr_idx] if expr_idx < len(EXPRESSION_NAMES) else "---"
+        # 4 columns x 2 rows: col = i % 4, row = i // 4
+        sub_col = i % 4
+        sub_row = i // 4
+        x = sub_col * 10
+        y = sub_row * 4
+        # Centered label
+        label = name[:9]  # max 9 chars to fit in 10-col sub-cell
+        start = x + (10 - len(label)) // 2
+        buf.put_text(start, y + 1, label)
+        # Index number
+        idx_str = f"#{expr_idx}"
+        buf.put_text(x + (10 - len(idx_str)) // 2, y + 2, idx_str)
+
+
+def layout_expr_0(buf):
+    """Expression slot 0: expressions 0-7 (neutral through love)."""
+    layout_expressions_slot(buf, 0)
+
+
+def layout_expr_1(buf):
+    """Expression slot 1: expressions 8-15 (excited through shocked)."""
+    layout_expressions_slot(buf, 8)
+
+
 SCREEN_LAYOUTS = {
     0: ("HOME", layout_home),
     1: ("STATS", layout_stats),
@@ -909,6 +962,9 @@ SCREEN_LAYOUTS = {
     45: ("PAIR OK", layout_dm_pair_complete),
     46: ("PAIR FAIL", layout_dm_pair_failed),
     47: ("PAIR JOIN", layout_dm_pair_joined),
+    48: ("YC", layout_yc),
+    49: ("EXPR 0-7", layout_expr_0),
+    50: ("EXPR 8-15", layout_expr_1),
 }
 
 

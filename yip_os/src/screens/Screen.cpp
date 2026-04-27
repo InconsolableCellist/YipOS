@@ -39,8 +39,10 @@
 #include "DMPairScreen.hpp"
 #include "DMComposeScreen.hpp"
 #include "DMMessageScreen.hpp"
+#include "YCScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
+#include "net/BridgeClient.hpp"
 #include "core/Glyphs.hpp"
 #include "core/TimeUtil.hpp"
 #include <unordered_map>
@@ -132,6 +134,12 @@ void Screen::RenderStatusIcons() {
     } else {
         display_.WriteGlyph(4, 7, G_HLINE);
     }
+    // Col 5: YC bridge connection indicator
+    if (auto* bc = pda_.GetBridgeClient(); bc && bc->IsConnected()) {
+        display_.WriteGlyph(5, 7, G_SIGNAL);
+    } else {
+        display_.WriteGlyph(5, 7, G_HLINE);
+    }
 }
 
 void Screen::RenderCursor() {
@@ -181,6 +189,7 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"DM_PAIR",            [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMPairScreen>(p); }},
         {"DM_COMPOSE",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMComposeScreen>(p); }},
         {"DM_MSG",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMMessageScreen>(p); }},
+        {"YC",                 [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<YCScreen>(p); }},
     };
 
     auto it = registry.find(name);

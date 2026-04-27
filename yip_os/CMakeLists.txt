@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(yip_os VERSION 1.1.4 LANGUAGES C CXX)
+project(yip_os VERSION 1.2.0 LANGUAGES C CXX)
 
 # Generate git hash header on every build (not just configure)
 set(YIP_GIT_HASH_HEADER "${CMAKE_BINARY_DIR}/git_hash.h")
@@ -149,6 +149,8 @@ set(YIPOS_SOURCES
     src/screens/DMComposeScreen.cpp
     src/screens/DMMessageScreen.cpp
     src/net/DMClient.cpp
+    src/net/BridgeClient.cpp
+    src/screens/YCScreen.cpp
     src/img/QRGen.cpp
     src/translate/TranslationWorker.cpp
     src/img/VQEncoder.cpp

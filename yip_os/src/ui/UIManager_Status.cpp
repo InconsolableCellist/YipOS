@@ -3,7 +3,9 @@
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "net/OSCManager.hpp"
+#include "net/BridgeClient.hpp"
 #include "audio/WhisperWorker.hpp"
+#include "core/Config.hpp"
 #include "screens/Screen.hpp"
 
 #include <imgui.h>
@@ -149,6 +151,79 @@ void UIManager::RenderStatusTab(PDAController& pda, OSCManager& osc) {
             if (any_locked) {
                 if (whisper && whisper->IsRunning()) ImGui::SameLine(400);
                 ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.3f, 1.0f), "SPVR: locked");
+            }
+        }
+    }
+
+    // --- YC Bridge ---
+    {
+        auto& config = pda.GetConfig();
+        ImGui::Separator();
+        ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Yip Companion Bridge");
+
+        bool bridge_enabled = config.GetState("bridge.enabled") == "1";
+        if (ImGui::Checkbox("Enable##bridge", &bridge_enabled)) {
+            config.SetState("bridge.enabled", bridge_enabled ? "1" : "0");
+            auto* bc = pda.GetBridgeClient();
+            if (bridge_enabled && bc && !bc->IsConnected()) {
+                std::string host = config.GetState("bridge.host");
+                if (host.empty()) host = "127.0.0.1";
+                int port = 9200;
+                std::string pv = config.GetState("bridge.port");
+                if (!pv.empty()) {
+                    try { port = std::stoi(pv); } catch (...) {}
+                }
+                bc->Stop();
+                bc->Start(host, port);
+            } else if (!bridge_enabled && bc) {
+                bc->Stop();
+            }
+        }
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(120);
+        static char host_buf[64] = {};
+        static bool host_init = false;
+        if (!host_init) {
+            std::string hv = config.GetState("bridge.host");
+            if (hv.empty()) hv = "127.0.0.1";
+            snprintf(host_buf, sizeof(host_buf), "%s", hv.c_str());
+            host_init = true;
+        }
+        if (ImGui::InputText("Host##bridge", host_buf, sizeof(host_buf))) {
+            config.SetState("bridge.host", host_buf);
+        }
+
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(80);
+        static char port_buf[8] = {};
+        static bool port_init = false;
+        if (!port_init) {
+            std::string pv = config.GetState("bridge.port");
+            if (pv.empty()) pv = "9200";
+            snprintf(port_buf, sizeof(port_buf), "%s", pv.c_str());
+            port_init = true;
+        }
+        if (ImGui::InputText("Port##bridge", port_buf, sizeof(port_buf),
+                             ImGuiInputTextFlags_CharsDecimal)) {
+            config.SetState("bridge.port", port_buf);
+        }
+
+        auto* bc = pda.GetBridgeClient();
+        if (bc) {
+            ImGui::SameLine();
+            if (bc->IsConnected()) {
+                auto data = bc->GetData();
+                if (!data.companion_name.empty()) {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f),
+                                       "Connected (%s)", data.companion_name.c_str());
+                } else {
+                    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Connected");
+                }
+            } else if (bridge_enabled) {
+                ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.4f, 1.0f), "Connecting...");
+            } else {
+                ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "Disabled");
             }
         }
     }

@@ -20,6 +20,7 @@
 #include "net/VRCAvatarData.hpp"
 #include "audio/AudioCapture.hpp"
 #include "audio/WhisperWorker.hpp"
+#include "net/BridgeClient.hpp"
 #ifdef YIPOS_HAS_TRANSLATION
 #include "translate/TranslationWorker.hpp"
 #endif
@@ -195,6 +196,20 @@ int main(int argc, char* argv[]) {
         YipOS::TranslationWorker translation_worker;
         pda.SetTranslationWorker(&translation_worker);
 #endif
+
+        // YC Bridge (optional TCP connection to Yip Companion)
+        YipOS::BridgeClient bridge_client;
+        pda.SetBridgeClient(&bridge_client);
+        if (config.GetState("bridge.enabled") == "1") {
+            std::string host = config.GetState("bridge.host");
+            if (host.empty()) host = "127.0.0.1";
+            int port = 9200;
+            std::string pv = config.GetState("bridge.port");
+            if (!pv.empty()) {
+                try { port = std::stoi(pv); } catch (...) {}
+            }
+            bridge_client.Start(host, port);
+        }
 
         // Restore persisted state
         std::string saved_disk = config.GetState("stats.disk");
@@ -387,6 +402,7 @@ int main(int argc, char* argv[]) {
         YipOS::Logger::SetUICallback(nullptr);
         s_ui = nullptr;
         YipOS::Logger::Info("Shutting down");
+        bridge_client.Stop();
         pda.GoHome();
         ui.SaveWindowSize(config);
         whisper_worker.Stop();
