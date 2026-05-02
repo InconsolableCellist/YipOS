@@ -115,21 +115,54 @@ const nlohmann::json* GetField(const nlohmann::json& obj,
 
 void ParseSingleEvent(const nlohmann::json& j, FurEvent& ev) {
     ev.id          = GetStr(j, {"id", "_id", "uuid", "slug"});
-    ev.title       = GetStr(j, {"title", "name", "summary"});
-    ev.description = GetStr(j, {"description", "desc", "details", "summary_long", "body"});
-    ev.host        = GetStr(j, {"host", "presenter", "streamer", "performer", "user", "presenters", "hosts"});
-    ev.location    = GetStr(j, {"location", "venue", "world", "stage", "room"});
-    ev.track       = GetStr(j, {"track", "category", "type", "tag"});
-    ev.url         = GetStr(j, {"url", "link", "twitch_url", "stream_url"});
+    ev.title       = GetStr(j, {"title", "name", "summary", "subject"});
+    ev.description = GetStr(j, {"description", "desc", "details", "summary_long", "body", "abstract"});
+    ev.host        = GetStr(j, {"host", "presenter", "streamer", "performer", "user", "presenters", "hosts", "channel", "creator"});
+    ev.location    = GetStr(j, {"location", "venue", "world", "stage", "room", "place"});
+    ev.track       = GetStr(j, {"track", "category", "type", "tag", "kind"});
+    ev.url         = GetStr(j, {"url", "link", "twitch_url", "stream_url", "channel_url"});
 
-    if (auto* s = GetField(j, {"start_time", "startTime", "start", "starts_at", "start_at"}))
+    if (auto* s = GetField(j, {"start_time", "startTime", "start", "starts_at", "start_at", "scheduled_at", "scheduledAt", "time", "begin", "beginAt"}))
         ev.start_unix = ParseTime(*s);
-    if (auto* e = GetField(j, {"end_time", "endTime", "end", "ends_at", "end_at"}))
+    if (auto* e = GetField(j, {"end_time", "endTime", "end", "ends_at", "end_at", "finish", "finishAt"}))
         ev.end_unix = ParseTime(*e);
 
     if (ev.id.empty()) {
         ev.id = ev.title + "|" + std::to_string(ev.start_unix);
     }
+}
+
+// Heuristic: does this object look like a schedule entry?
+bool LooksLikeEvent(const nlohmann::json& j) {
+    if (!j.is_object()) return false;
+    bool has_title_like =
+        j.contains("title") || j.contains("name") || j.contains("summary") ||
+        j.contains("subject");
+    bool has_time_like =
+        j.contains("start_time") || j.contains("startTime") || j.contains("start") ||
+        j.contains("starts_at") || j.contains("start_at") || j.contains("scheduled_at") ||
+        j.contains("scheduledAt") || j.contains("time") || j.contains("begin");
+    return has_title_like && has_time_like;
+}
+
+// Walk the JSON tree and return the first array whose elements look like
+// schedule entries, or nullptr if none. Handles arbitrary wrapper shapes
+// like {"data": {"items": [...]}} without us needing to know the exact path.
+const nlohmann::json* FindEventArray(const nlohmann::json& j) {
+    if (j.is_array()) {
+        if (!j.empty() && LooksLikeEvent(j[0])) return &j;
+    }
+    if (j.is_object()) {
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            if (auto* found = FindEventArray(*it)) return found;
+        }
+    }
+    if (j.is_array()) {
+        for (auto& el : j) {
+            if (auto* found = FindEventArray(el)) return found;
+        }
+    }
+    return nullptr;
 }
 
 } // namespace
@@ -224,33 +257,64 @@ bool FuralityClient::ParseEventInfo(const std::string& body) {
 bool FuralityClient::ParseSchedule(const std::string& body) {
     try {
         auto j = nlohmann::json::parse(body);
-        const nlohmann::json* arr = &j;
-        if (j.is_object()) {
-            if (auto* d = GetField(j, {"data", "schedule", "events", "items", "results"}))
-                arr = d;
+
+        // Try the conventional wrapper keys first…
+        const nlohmann::json* arr = nullptr;
+        if (j.is_array()) {
+            arr = &j;
+        } else if (j.is_object()) {
+            if (auto* d = GetField(j, {"data", "schedule", "events", "items",
+                                       "results", "stream", "streams", "shows"})) {
+                if (d->is_array()) {
+                    arr = d;
+                } else if (d->is_object()) {
+                    // One more level of nesting (e.g. {"data":{"events":[…]}})
+                    if (auto* dd = GetField(*d, {"items", "events", "schedule",
+                                                  "results", "data"})) {
+                        if (dd->is_array()) arr = dd;
+                    }
+                }
+            }
         }
-        if (!arr->is_array()) {
-            Logger::Warning("FuralityClient: schedule body is not an array");
+
+        // …and if those didn't pan out, recursively hunt for any array of
+        // event-shaped objects.
+        if (!arr) arr = FindEventArray(j);
+
+        if (!arr || !arr->is_array()) {
+            Logger::Warning("FuralityClient: schedule body has no recognizable "
+                            "event array. Snippet: " + body.substr(0, 400));
             return false;
         }
 
         events_.clear();
         events_.reserve(arr->size());
+        int rejected = 0;
         for (auto& item : *arr) {
-            if (!item.is_object()) continue;
+            if (!item.is_object()) { rejected++; continue; }
             FurEvent ev;
             ParseSingleEvent(item, ev);
-            if (ev.title.empty() && ev.start_unix == 0) continue;
+            if (ev.title.empty() && ev.start_unix == 0) { rejected++; continue; }
             events_.push_back(std::move(ev));
+        }
+
+        if (events_.empty()) {
+            // Dump a small sample so we can see the actual field names
+            std::string sample;
+            if (!arr->empty()) sample = (*arr)[0].dump().substr(0, 600);
+            Logger::Warning("FuralityClient: parsed " + std::to_string(arr->size()) +
+                            " entries but extracted 0 events (rejected " +
+                            std::to_string(rejected) + "). Sample item: " + sample);
         }
 
         std::sort(events_.begin(), events_.end(),
                   [](const FurEvent& a, const FurEvent& b) {
                       return a.start_unix < b.start_unix;
                   });
-        return true;
+        return !events_.empty();
     } catch (const std::exception& e) {
-        Logger::Warning(std::string("FuralityClient schedule parse: ") + e.what());
+        Logger::Warning(std::string("FuralityClient schedule parse: ") + e.what() +
+                        " body[0..200]: " + body.substr(0, 200));
         return false;
     }
 }
