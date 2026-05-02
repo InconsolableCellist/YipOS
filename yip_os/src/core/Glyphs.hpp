@@ -33,7 +33,7 @@ constexpr TileLabel TILE_LABELS[HOME_PAGES][TILE_ROWS][TILE_COLS] = {
      {{"CC"},    {"AVTR"},  {"TEXT"},  {"MEDIA"}, {"LOCK"}}},
     // Page 1
     {{{"DBG"},   {"TWTCH"}, {"INTRP"}, {"YC"},    {"DM"}},
-     {{"-----"}, {"-----"}, {"-----"}, {"-----"}, {"-----"}},
+     {{"FUR"},   {"-----"}, {"-----"}, {"-----"}, {"-----"}},
      {{"-----"}, {"-----"}, {"-----"}, {"-----"}, {"-----"}}},
 };
 // clang-format on

@@ -151,6 +151,11 @@ set(YIPOS_SOURCES
     src/net/DMClient.cpp
     src/net/BridgeClient.cpp
     src/screens/YCScreen.cpp
+    src/net/FuralityClient.cpp
+    src/screens/FuralityScreen.cpp
+    src/screens/FurListScreen.cpp
+    src/screens/FurDetailScreen.cpp
+    src/haptic/HapticClient.cpp
     src/img/QRGen.cpp
     src/translate/TranslationWorker.cpp
     src/img/VQEncoder.cpp
@@ -308,6 +313,31 @@ target_link_libraries(yip_os PRIVATE
     OpenGL::GL
     CURL::libcurl
 )
+
+# OpenVR for SteamVR controller haptics (optional, default OFF so the
+# default build doesn't pull a network dependency or require SteamVR).
+option(YIPOS_HAS_OPENVR "Enable SteamVR controller haptics via OpenVR" OFF)
+if(YIPOS_HAS_OPENVR)
+    FetchContent_Declare(
+        openvr
+        GIT_REPOSITORY https://github.com/ValveSoftware/openvr.git
+        GIT_TAG v2.5.1
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(openvr)
+    target_compile_definitions(yip_os PRIVATE YIPOS_HAS_OPENVR)
+    target_include_directories(yip_os PRIVATE ${openvr_SOURCE_DIR}/headers)
+    if(WIN32)
+        target_link_libraries(yip_os PRIVATE
+            ${openvr_SOURCE_DIR}/lib/win64/openvr_api.lib)
+    else()
+        target_link_libraries(yip_os PRIVATE
+            ${openvr_SOURCE_DIR}/lib/linux64/libopenvr_api.so)
+    endif()
+    message(STATUS "OpenVR enabled — SteamVR controller haptics available")
+else()
+    message(STATUS "OpenVR disabled — haptics will be a no-op")
+endif()
 
 if(YIPOS_HAS_TRANSLATION)
     target_link_libraries(yip_os PRIVATE CTranslate2::ctranslate2)
