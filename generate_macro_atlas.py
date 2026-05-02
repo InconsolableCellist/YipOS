@@ -913,6 +913,33 @@ def layout_expr_1(buf):
     layout_expressions_slot(buf, 8)
 
 
+def layout_fur(buf):
+    """FUR home / day picker: frame + back arrow + SEL arrow + status bar.
+    Body rows are dynamic (NEXT row + ALL/days/MARKED entries)."""
+    buf.put_frame("FURALITY")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    buf.put_status_bar()
+
+
+def layout_fur_list(buf):
+    """FUR event list (per-day or ALL/MARKED). Title overridden at runtime —
+    "ALL EVENTS" is a generic placeholder that the C++ render replaces."""
+    buf.put_frame("ALL EVENTS")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    buf.put_status_bar()
+
+
+def layout_fur_dtl(buf):
+    """FUR event detail: frame + back/SEL arrows + status bar.
+    Heart marker, page indicator, and description are dynamic."""
+    buf.put_frame("EVENT")
+    buf.put_glyph(0, 1, G_LEFT_A)
+    buf.put_glyph(COLS - 1, 1, G_RIGHT_A)
+    buf.put_status_bar()
+
+
 SCREEN_LAYOUTS = {
     0: ("HOME", layout_home),
     1: ("STATS", layout_stats),
@@ -965,6 +992,9 @@ SCREEN_LAYOUTS = {
     48: ("YC", layout_yc),
     49: ("EXPR 0-7", layout_expr_0),
     50: ("EXPR 8-15", layout_expr_1),
+    51: ("FUR", layout_fur),
+    52: ("FUR LIST", layout_fur_list),
+    53: ("FUR DTL", layout_fur_dtl),
 }
 
 

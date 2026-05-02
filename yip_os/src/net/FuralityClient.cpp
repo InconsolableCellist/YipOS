@@ -19,8 +19,13 @@ namespace YipOS {
 
 namespace {
 
-constexpr const char* kEventURL    = "https://api.fynn.ai/v2/event";
-constexpr const char* kScheduleURL = "https://api.fynn.ai/v2/streamteam/schedule";
+// /v2/event returns the full event list with absolute datetimes:
+//   {"data":[{id,name,start,end,description,type,...}, ...]}
+// /v2/streamteam/schedule is a streamteam-only timeslot grouping whose
+// event entries carry only "10:00 AM EDT"-style time-of-day strings, so it
+// can't drive absolute scheduling. /v2/event is a superset, so we use it
+// alone.
+constexpr const char* kEventURL = "https://api.fynn.ai/v2/event";
 
 size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
     auto* str = static_cast<std::string*>(userp);
@@ -206,16 +211,13 @@ bool FuralityClient::HttpGet(const std::string& url, std::string& out_body) {
 
 bool FuralityClient::FetchAll() {
     std::string body;
-    bool got_info = false;
     if (HttpGet(kEventURL, body)) {
-        got_info = ParseEventInfo(body);
-    }
-
-    if (HttpGet(kScheduleURL, body)) {
         if (!ParseSchedule(body)) {
             Logger::Warning("FuralityClient: schedule parse failed");
         }
     }
+
+    if (info_.name.empty()) info_.name = "Furality";
 
     RecomputeDayIndices();
 
@@ -224,34 +226,7 @@ bool FuralityClient::FetchAll() {
 
     Logger::Info("FuralityClient: " + std::to_string(events_.size()) +
                  " event(s), " + std::to_string(info_.day_count) + " day(s)");
-    return got_info || !events_.empty();
-}
-
-bool FuralityClient::ParseEventInfo(const std::string& body) {
-    try {
-        auto j = nlohmann::json::parse(body);
-        // The API may return either a top-level object or a wrapper like
-        // {"data": {...}} / {"event": {...}}.
-        const nlohmann::json* root = &j;
-        if (auto* d = GetField(j, {"data", "event", "result"})) root = d;
-        if (root->is_array() && !root->empty()) root = &(*root)[0];
-
-        info_.name = GetStr(*root, {"name", "title"});
-        if (auto* s = GetField(*root, {"start_time", "startTime", "start", "starts_at"}))
-            info_.start_unix = ParseTime(*s);
-        if (auto* e = GetField(*root, {"end_time", "endTime", "end", "ends_at"}))
-            info_.end_unix = ParseTime(*e);
-
-        if (info_.start_unix > 0 && info_.end_unix > info_.start_unix) {
-            int64_t span = info_.end_unix - info_.start_unix;
-            info_.day_count = static_cast<int>((span + 86399) / 86400);
-            if (info_.day_count < 1) info_.day_count = 1;
-        }
-        return true;
-    } catch (const std::exception& e) {
-        Logger::Warning(std::string("FuralityClient event parse: ") + e.what());
-        return false;
-    }
+    return !events_.empty();
 }
 
 bool FuralityClient::ParseSchedule(const std::string& body) {

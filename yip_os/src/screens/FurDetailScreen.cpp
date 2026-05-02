@@ -6,6 +6,7 @@
 #include "core/Glyphs.hpp"
 #include "net/FuralityClient.hpp"
 
+#include <algorithm>
 #include <cstdio>
 #include <ctime>
 #include <string>
@@ -16,27 +17,40 @@ using namespace Glyphs;
 
 FurDetailScreen::FurDetailScreen(PDAController& pda) : Screen(pda) {
     name = "FUR_DTL";
-    macro_index = -1;
+    macro_index = 53;
     refresh_interval = -1;
     ev_ = pda_.GetSelectedFurEvent();
+    BuildDescriptionLines();
 }
 
 void FurDetailScreen::Render() {
     RenderFrame("EVENT");
-    RenderContent();
-    RenderMarkRow();
+    // Back arrow + SEL arrow (SEL toggles the heart mark)
+    display_.WriteGlyph(0, 1, G_LEFT_A);
+    display_.WriteGlyph(COLS - 1, 1, G_RIGHT_A);
+    RenderHeader();
+    RenderDescription();
+    RenderMarkIndicator();
+    RenderPageIndicator();
     RenderStatusBar();
 }
 
 void FurDetailScreen::RenderDynamic() {
+    // After a macro stamp, the frame and back/SEL arrows are already on the
+    // RT. Just paint the dynamic content (dirty-skip swallows any redundant
+    // cells if RenderHeader writes spaces over already-blank cells).
+    RenderHeader();
+    RenderDescription();
+    RenderMarkIndicator();
+    RenderPageIndicator();
     RenderClock();
     RenderCursor();
 }
 
 std::string FurDetailScreen::FormatTimeRange() const {
     if (!ev_) return {};
-    char buf[32];
     if (ev_->start_unix <= 0) return {};
+    char buf[32];
     std::time_t s = static_cast<std::time_t>(ev_->start_unix);
     std::tm* slt = std::localtime(&s);
     if (!slt) return {};
@@ -55,28 +69,95 @@ std::string FurDetailScreen::FormatTimeRange() const {
     return out;
 }
 
-void FurDetailScreen::RenderContent() {
+void FurDetailScreen::BuildDescriptionLines() {
+    desc_lines_.clear();
+    if (!ev_) return;
+    const int max_w = COLS - 2;  // 38
+
+    // Sanitize: strip non-printable, collapse whitespace runs to single spaces.
+    std::string raw;
+    raw.reserve(ev_->description.size());
+    bool prev_space = true;
+    for (char c : ev_->description) {
+        unsigned char u = static_cast<unsigned char>(c);
+        if (u < 32 || u > 126) c = ' ';
+        if (c == ' ') {
+            if (prev_space) continue;
+            prev_space = true;
+        } else {
+            prev_space = false;
+        }
+        raw.push_back(c);
+    }
+    while (!raw.empty() && raw.back() == ' ') raw.pop_back();
+
+    // Greedy word-wrap at the last space within max_w.
+    size_t i = 0;
+    while (i < raw.size()) {
+        size_t take = std::min<size_t>(max_w, raw.size() - i);
+        if (i + take < raw.size()) {
+            size_t brk = raw.rfind(' ', i + take);
+            if (brk != std::string::npos && brk > i) {
+                take = brk - i;
+            }
+        }
+        desc_lines_.emplace_back(raw.substr(i, take));
+        i += take;
+        while (i < raw.size() && raw[i] == ' ') i++;
+    }
+}
+
+int FurDetailScreen::PageCount() const {
+    int total = static_cast<int>(desc_lines_.size());
+    if (total <= FirstPageDescRows()) return 1;
+    int rest = total - FirstPageDescRows();
+    int more_pages = (rest + LaterPageDescRows() - 1) / LaterPageDescRows();
+    return 1 + more_pages;
+}
+
+int FurDetailScreen::LinesOnPage(int page) const {
+    return page == 0 ? FirstPageDescRows() : LaterPageDescRows();
+}
+
+int FurDetailScreen::LineOffsetForPage(int page) const {
+    if (page <= 0) return 0;
+    return FirstPageDescRows() + (page - 1) * LaterPageDescRows();
+}
+
+void FurDetailScreen::RenderHeader() {
     auto& d = display_;
-    int max_w = COLS - 2;  // 38
+    int max_w = COLS - 2;
 
     if (!ev_) {
         d.WriteText(2, 3, "No event selected");
         return;
     }
 
-    // Row 1: title (truncated)
+    // On page 0 we keep title/time/host visible. Subsequent pages dedicate
+    // every body row to description, so blank these rows then.
+    if (page_ != 0) {
+        for (int r = 1; r <= 3; r++) {
+            for (int c = 1; c < COLS - 1; c++) d.WriteChar(c, r, ' ');
+        }
+        // SEL/back arrows reside on row 1; re-stamp them after the row clear
+        // (SendWrite skips the no-op when content already matches).
+        d.WriteGlyph(0, 1, G_LEFT_A);
+        d.WriteGlyph(COLS - 1, 1, G_RIGHT_A);
+        return;
+    }
+
     std::string title = ev_->title.empty() ? std::string("(untitled)") : ev_->title;
-    if (static_cast<int>(title.size()) > max_w) title = title.substr(0, max_w);
+    // Leave 1 col on the right for the SEL arrow at (COLS-1, 1).
+    int title_max = max_w - 1;
+    if (static_cast<int>(title.size()) > title_max) title = title.substr(0, title_max);
     d.WriteText(1, 1, title);
 
-    // Row 2: time range
     std::string when = FormatTimeRange();
     if (!when.empty()) {
         if (static_cast<int>(when.size()) > max_w) when = when.substr(0, max_w);
         d.WriteText(1, 2, when);
     }
 
-    // Row 3: host / location
     std::string sub;
     if (!ev_->host.empty()) sub = ev_->host;
     if (!ev_->location.empty()) {
@@ -87,47 +168,48 @@ void FurDetailScreen::RenderContent() {
         if (static_cast<int>(sub.size()) > max_w) sub = sub.substr(0, max_w);
         d.WriteText(1, 3, sub);
     }
+}
 
-    // Rows 4-6: description, word-wrapped
-    std::string desc = ev_->description;
-    for (auto& c : desc) {
-        if (c == '\n' || c == '\r' || c == '\t') c = ' ';
-        else if (static_cast<unsigned char>(c) < 32) c = ' ';
-    }
-    int row = 4;
-    int col = 0;
-    for (size_t i = 0; i < desc.size() && row <= 6; i++) {
-        if (col >= max_w) {
-            row++;
-            col = 0;
-            if (row > 6) break;
-        }
-        char c = desc[i];
-        if (c < 32 || static_cast<unsigned char>(c) > 126) c = '?';
-        d.WriteChar(1 + col, row, static_cast<int>(c));
-        col++;
+void FurDetailScreen::RenderDescription() {
+    auto& d = display_;
+    if (!ev_) return;
+
+    int first_row = (page_ == 0) ? 4 : 1;
+    int last_row = 6;
+    int row_count = last_row - first_row + 1;
+
+    int line_offset = LineOffsetForPage(page_);
+    int total = static_cast<int>(desc_lines_.size());
+
+    for (int r = 0; r < row_count; r++) {
+        int line_idx = line_offset + r;
+        int row_y = first_row + r;
+        // Clear the row first so retreating to a shorter page erases stragglers.
+        for (int c = 1; c < COLS - 1; c++) d.WriteChar(c, row_y, ' ');
+        if (line_idx >= total) continue;
+        d.WriteText(1, row_y, desc_lines_[line_idx]);
     }
 }
 
-void FurDetailScreen::RenderMarkRow() {
+void FurDetailScreen::RenderMarkIndicator() {
     auto& d = display_;
     auto* fc = pda_.GetFuralityClient();
     bool marked = (ev_ && fc && fc->IsMarked(ev_->id));
+    // Heart at row 6 col 1 when marked (left of the page indicator).
+    d.WriteChar(1, 6, marked ? G_HEART : ' ');
+}
 
-    // Render the mark indicator on row 6 right-side (so it doesn't fight the
-    // description). Inverted block when marked.
-    const char* tag = marked ? " MARKED  TR=UNMARK " : "  TR = MARK INTEREST";
-    int len = static_cast<int>(std::char_traits<char>::length(tag));
+void FurDetailScreen::RenderPageIndicator() {
+    int total = PageCount();
+    if (total <= 1) return;
+    char buf[12];
+    std::snprintf(buf, sizeof(buf), "%d/%d", page_ + 1, total);
+    int len = static_cast<int>(std::char_traits<char>::length(buf));
     int col = COLS - 1 - len;
-    if (col < 1) col = 1;
-
-    for (int i = 0; i < len; i++) {
-        int ch = static_cast<int>(tag[i]);
-        if (marked) ch += INVERT_OFFSET;
-        d.WriteChar(col + i, 6, ch);
-    }
-
-    if (marked) d.WriteGlyph(col - 1 < 1 ? 1 : col - 1, 6, G_HEART);
+    // Page-indicator goes at row 6 right; the heart is at col 1.
+    display_.WriteText(col, 6, buf);
+    if (page_ > 0) display_.WriteGlyph(col - 2, 6, G_LEFT_A);
+    if (page_ < total - 1) display_.WriteGlyph(COLS - 1, 6, G_RIGHT_A);
 }
 
 bool FurDetailScreen::OnInput(const std::string& key) {
@@ -139,12 +221,30 @@ bool FurDetailScreen::OnInput(const std::string& key) {
         bool now_marked = !fc->IsMarked(ev_->id);
         fc->SetMarked(pda_.GetConfig(), ev_->id, now_marked);
         pda_.GetConfig().Flush();
-        // If we just unmarked, also clear any pending notification flag
         if (!now_marked) pda_.ClearFurNotifiedFor(ev_->id);
-        // Re-render the mark row
+        // Just flip the heart on row 6.
         display_.BeginPriority();
-        RenderMarkRow();
+        RenderMarkIndicator();
         display_.EndPriority();
+        return true;
+    }
+
+    if (key == "ML" && page_ > 0) {
+        page_--;
+        display_.BeginBuffered();
+        RenderHeader();
+        RenderDescription();
+        RenderMarkIndicator();
+        RenderPageIndicator();
+        return true;
+    }
+    if (key == "BL" && page_ < PageCount() - 1) {
+        page_++;
+        display_.BeginBuffered();
+        RenderHeader();
+        RenderDescription();
+        RenderMarkIndicator();
+        RenderPageIndicator();
         return true;
     }
     return false;

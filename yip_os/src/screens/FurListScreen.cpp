@@ -15,7 +15,7 @@ using namespace Glyphs;
 
 FurListScreen::FurListScreen(PDAController& pda) : ListScreen(pda) {
     name = "FUR_LIST";
-    macro_index = -1;
+    macro_index = 52;
     refresh_interval = -1;
 
     fur_day_ = pda_.GetPendingFurDay();
@@ -47,9 +47,22 @@ std::string FurListScreen::TitleForDay() const {
 void FurListScreen::Render() {
     SyncEvents();
     RenderFrame(TitleForDay());
+    // SEL arrow: TR opens the selected event detail
+    display_.WriteGlyph(0, 1, G_LEFT_A);
+    display_.WriteGlyph(COLS - 1, 1, G_RIGHT_A);
     RenderRows();
     RenderPageIndicators();
     RenderStatusBar();
+}
+
+void FurListScreen::RenderDynamic() {
+    // The macro provides "ALL EVENTS" as the baked title; overwrite it with
+    // the per-day name. RenderFrame's repeats over the side rails are no-ops
+    // thanks to dirty-skip in PDADisplay, so this only repaints the title
+    // cells that actually differ.
+    SyncEvents();
+    RenderFrame(TitleForDay());
+    ListScreen::RenderDynamic();
 }
 
 int FurListScreen::ItemCount() const {
@@ -59,7 +72,8 @@ int FurListScreen::ItemCount() const {
 void FurListScreen::RenderEmpty() {
     if (fur_day_ == FuralityScreen::kFurDayMarked) {
         display_.WriteText(2, 3, "No marked events");
-        display_.WriteText(2, 5, "TR on event to mark");
+        // The detail screen has the SEL arrow indicator; users learn there
+        // that SEL toggles the heart. No need for an inline hint here.
     } else {
         display_.WriteText(2, 3, "No events for this day");
     }
@@ -74,14 +88,19 @@ void FurListScreen::RenderRow(int i, bool selected) {
     int row_y = i + 1;
     if (row_y < 1 || row_y > 6) return;
 
-    auto& d = display_;
     auto* fc = pda_.GetFuralityClient();
     bool marked = fc && fc->IsMarked(ev->id);
 
-    // Clear interior
-    for (int c = 1; c < COLS - 1; c++) d.WriteChar(c, row_y, ' ');
+    // Single-pass full-width row build — see FuralityScreen::RenderRow for
+    // the rationale (avoids the clear-then-content double-write).
+    constexpr int kBodyStart = 1;
+    constexpr int kBodyEnd   = COLS - 1;
+    constexpr int kBodyWidth = kBodyEnd - kBodyStart;
 
-    // Cols 1-5: HH:MM (selection-marked area is the first 3 chars)
+    std::string body(kBodyWidth, ' ');
+
+    // Cols 1..5: HH:MM (selection-marked area is the first 3 chars; that
+    // overlay is applied below).
     char hhmm[8] = "--:--";
     if (ev->start_unix > 0) {
         std::time_t t = static_cast<std::time_t>(ev->start_unix);
@@ -89,17 +108,17 @@ void FurListScreen::RenderRow(int i, bool selected) {
         if (lt) std::strftime(hhmm, sizeof(hhmm), "%H:%M", lt);
     }
     for (int c = 0; c < 5; c++) {
-        int ch = static_cast<int>(hhmm[c]);
-        if (selected && c < SEL_WIDTH) ch += INVERT_OFFSET;
-        d.WriteChar(1 + c, row_y, ch);
+        body[c] = hhmm[c];  // body[0] = col 1 (kBodyStart)
     }
 
     // Col 7: heart glyph if marked
-    if (marked) d.WriteGlyph(7, row_y, G_HEART);
+    if (marked) {
+        body[7 - kBodyStart] = static_cast<char>(G_HEART);
+    }
 
-    // Cols 9-37: title (truncated)
+    // Col 9: title (with implicit gap at col 8)
     int title_col = 9;
-    int title_max = COLS - 1 - title_col;  // 30
+    int title_max = kBodyEnd - title_col;
     std::string title = ev->title.empty() ? std::string("(untitled)") : ev->title;
     if (static_cast<int>(title.size()) > title_max) {
         if (title_max > 3) title = title.substr(0, title_max - 3) + "...";
@@ -108,7 +127,20 @@ void FurListScreen::RenderRow(int i, bool selected) {
     for (size_t c = 0; c < title.size(); c++) {
         char ch = title[c];
         if (ch < 32 || ch > 126) ch = '?';
-        d.WriteChar(title_col + static_cast<int>(c), row_y, static_cast<int>(ch));
+        body[(title_col - kBodyStart) + static_cast<int>(c)] = ch;
+    }
+
+    auto& d = display_;
+    for (int c = 0; c < kBodyWidth; c++) {
+        unsigned char ch = static_cast<unsigned char>(body[c]);
+        // Selection-mark cells get inverted overlay
+        if (selected && c < SEL_WIDTH) {
+            int idx = static_cast<int>(ch);
+            if (idx < INVERT_OFFSET) idx += INVERT_OFFSET;
+            d.WriteChar(kBodyStart + c, row_y, idx);
+        } else {
+            d.WriteChar(kBodyStart + c, row_y, ch);
+        }
     }
 }
 

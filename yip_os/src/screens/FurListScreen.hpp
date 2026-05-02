@@ -15,6 +15,7 @@ public:
     FurListScreen(PDAController& pda);
 
     void Render() override;
+    void RenderDynamic() override;
 
 protected:
     int ItemCount() const override;
