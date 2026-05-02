@@ -7,6 +7,7 @@
 #include <mutex>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <array>
 #include <atomic>
 
@@ -35,6 +36,10 @@ class TwitchClient;
 struct TwitchMessage;
 class TranslationWorker;
 class BridgeClient;
+class FuralityClient;
+struct FurEvent;
+class HapticClient;
+enum class HapticPattern;
 
 class PDAController {
 public:
@@ -135,6 +140,21 @@ public:
     void SaveDMSessions();
     void LoadDMSessions();
     AudioPlayer* GetDMNotifySound() { return dm_notify_sound_.get(); }
+
+    // Furality integration
+    FuralityClient* GetFuralityClient() { return furality_client_.get(); }
+    void SetPendingFurDay(int day) { pending_fur_day_ = day; }
+    int GetPendingFurDay() const { return pending_fur_day_; }
+    void SetSelectedFurEvent(const FurEvent* e) { selected_fur_event_ = e; }
+    const FurEvent* GetSelectedFurEvent() const { return selected_fur_event_; }
+    bool HasPendingFurNotif() const { return has_pending_fur_notif_; }
+    void MarkFurSeen() { has_pending_fur_notif_ = false; }
+    void ClearFurNotifiedFor(const std::string& event_id);
+    void RefreshFuralityCache();
+
+    // Generic haptics (SteamVR controller vibration)
+    HapticClient* GetHapticClient() { return haptic_client_.get(); }
+    void NotifyHaptic(const std::string& source, HapticPattern pattern);
 
     // Twitch integration
     TwitchClient* GetTwitchClient() { return twitch_client_.get(); }
@@ -239,6 +259,20 @@ private:
     std::unique_ptr<AudioPlayer> dm_notify_sound_;
     bool prev_has_unseen_dm_ = false;
     std::string display_text_;
+
+    // Furality
+    std::unique_ptr<FuralityClient> furality_client_;
+    std::unique_ptr<AudioPlayer> fur_notify_sound_;
+    int pending_fur_day_ = -1;
+    const FurEvent* selected_fur_event_ = nullptr;
+    bool has_pending_fur_notif_ = false;
+    std::unordered_set<std::string> fur_notified_ids_;
+    double last_fur_check_ = 0;
+    static constexpr double FUR_CHECK_INTERVAL = 60.0;          // poll every 60 s
+    static constexpr int64_t FUR_NOTIFY_LEAD_SECONDS = 15 * 60; // 15-minute pre-warn
+
+    // Generic haptics
+    std::unique_ptr<HapticClient> haptic_client_;
 
     // Heart rate (updated from OSC recv thread)
     std::atomic<int> hr_bpm_{0};

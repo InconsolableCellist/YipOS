@@ -40,6 +40,9 @@
 #include "DMComposeScreen.hpp"
 #include "DMMessageScreen.hpp"
 #include "YCScreen.hpp"
+#include "FuralityScreen.hpp"
+#include "FurListScreen.hpp"
+#include "FurDetailScreen.hpp"
 #include "app/PDAController.hpp"
 #include "app/PDADisplay.hpp"
 #include "net/BridgeClient.hpp"
@@ -122,8 +125,9 @@ void Screen::RenderStatusIcons() {
     } else {
         display_.WriteGlyph(2, 7, G_HLINE);
     }
-    // Col 3: notification indicator (VRCX notifs OR chat unseen)
-    if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached()) {
+    // Col 3: notification indicator (VRCX notifs, chat unseen, or imminent FUR event)
+    if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached() ||
+        pda_.HasPendingFurNotif()) {
         display_.WriteGlyph(3, 7, G_BULLET);
     } else {
         display_.WriteGlyph(3, 7, G_HLINE);
@@ -190,6 +194,9 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"DM_COMPOSE",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMComposeScreen>(p); }},
         {"DM_MSG",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMMessageScreen>(p); }},
         {"YC",                 [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<YCScreen>(p); }},
+        {"FUR",                [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FuralityScreen>(p); }},
+        {"FUR_LIST",           [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FurListScreen>(p); }},
+        {"FUR_DTL",            [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FurDetailScreen>(p); }},
     };
 
     auto it = registry.find(name);

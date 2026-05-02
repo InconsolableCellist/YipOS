@@ -8,6 +8,8 @@
 #include "net/ChatClient.hpp"
 #include "net/DMClient.hpp"
 #include "audio/AudioPlayer.hpp"
+#include "haptic/HapticClient.hpp"
+#include "net/FuralityClient.hpp"
 #include "net/StockClient.hpp"
 #include "net/TwitchClient.hpp"
 #include "media/MediaController.hpp"
@@ -87,6 +89,22 @@ PDAController::PDAController(PDADisplay& display, NetTracker& net_tracker, Confi
     stock_client_ = std::make_unique<StockClient>();
     ReloadStockSymbols();
 
+    // Initialize haptics (SteamVR optional, soft-fails)
+    haptic_client_ = std::make_unique<HapticClient>();
+    haptic_client_->ReloadConfig(config_);
+    haptic_client_->Init();
+
+    // Initialize Furality client (always created — always-on convention schedule)
+    furality_client_ = std::make_unique<FuralityClient>();
+    furality_client_->LoadMarked(config_);
+    fur_notify_sound_ = std::make_unique<AudioPlayer>();
+    {
+        std::string vol_str = config_.GetState("fur.notify_volume", "0.4");
+        float vol = 0.4f;
+        try { vol = std::stof(vol_str); } catch (...) {}
+        fur_notify_sound_->SetVolume(vol);
+    }
+
     // Initialize Twitch client (gated by twitch.enabled + twitch.channel)
     twitch_client_ = std::make_unique<TwitchClient>();
     std::string twitch_channel = config_.GetState("twitch.channel");
@@ -109,6 +127,18 @@ void PDAController::SetAssetsPath(const std::string& p) {
     // Load DM notification sound now that the path is known
     if (dm_notify_sound_) {
         dm_notify_sound_->LoadOGG(assets_path_ + "/sounds/msgrcv.ogg");
+    }
+    // Load FUR notification sound (user supplies fur_alert.ogg).
+    if (fur_notify_sound_) {
+        std::string fur_sound_path = assets_path_ + "/sounds/fur_alert.ogg";
+        if (!fur_notify_sound_->LoadOGG(fur_sound_path)) {
+            // Fall back to the DM sound so the program still beeps.
+            fur_notify_sound_->LoadOGG(assets_path_ + "/sounds/msgrcv.ogg");
+        }
+    }
+    // Load FUR cache from disk if present
+    if (furality_client_) {
+        furality_client_->LoadCache(assets_path_ + "/cache/furality.json");
     }
 }
 
@@ -408,6 +438,9 @@ void PDAController::UpdateClock() {
 
     // Periodically refresh stock data
     RefreshStockCache();
+
+    // Periodically refresh Furality schedule + check for imminent events
+    RefreshFuralityCache();
 
     // Autolock check — engage soft lock (overlay, not screen push)
     if (!locked_ && !soft_locked_ && !booting_) {
@@ -817,6 +850,66 @@ void PDAController::RefreshStockCache() {
 
     std::string window = config_.GetState("stonk.window", "1MO");
     stock_client_->FetchAll(window);
+}
+
+void PDAController::NotifyHaptic(const std::string& source, HapticPattern pattern) {
+    if (haptic_client_) haptic_client_->Notify(source, pattern);
+}
+
+void PDAController::ClearFurNotifiedFor(const std::string& event_id) {
+    fur_notified_ids_.erase(event_id);
+}
+
+void PDAController::RefreshFuralityCache() {
+    if (!furality_client_) return;
+
+    double now = MonotonicNow();
+    if (now - last_fur_check_ < FUR_CHECK_INTERVAL) return;
+    last_fur_check_ = now;
+
+    // Re-read haptics config in case the user toggled it
+    if (haptic_client_) haptic_client_->ReloadConfig(config_);
+
+    // Refetch the schedule on a slower cadence than the marked-event scan.
+    // Schedules don't churn; 30 minutes is plenty.
+    std::string fetch_str = config_.GetState("fur.fetch_interval", "1800");
+    double fetch_interval = 1800.0;
+    try { fetch_interval = std::stod(fetch_str); } catch (...) {}
+
+    int64_t now_unix = std::chrono::duration_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+
+    bool need_fetch = !furality_client_->HasData() ||
+                      (furality_client_->LastFetch() == 0) ||
+                      (fetch_interval > 0 &&
+                       now_unix - furality_client_->LastFetch() >= fetch_interval);
+    if (need_fetch) {
+        if (furality_client_->FetchAll() && !assets_path_.empty()) {
+            furality_client_->SaveCache(assets_path_ + "/cache/furality.json");
+        }
+    }
+
+    // Marked-event scan: fire one notification per imminent event.
+    auto marked = furality_client_->MarkedEvents();
+    for (const FurEvent* ev : marked) {
+        if (!ev || ev->start_unix <= 0) continue;
+        int64_t lead = ev->start_unix - now_unix;
+        if (lead <= 0 || lead > FUR_NOTIFY_LEAD_SECONDS) continue;
+        if (fur_notified_ids_.count(ev->id)) continue;
+
+        fur_notified_ids_.insert(ev->id);
+        has_pending_fur_notif_ = true;
+
+        Logger::Info("FUR: notifying for '" + ev->title +
+                     "' starting in " + std::to_string(lead / 60) + " min");
+
+        if (config_.GetState("fur.notify_sound", "1") == "1" &&
+            fur_notify_sound_ && fur_notify_sound_->IsLoaded() &&
+            !fur_notify_sound_->IsPlaying()) {
+            fur_notify_sound_->Play();
+        }
+        NotifyHaptic("fur", HapticPattern::Alert);
+    }
 }
 
 } // namespace YipOS
