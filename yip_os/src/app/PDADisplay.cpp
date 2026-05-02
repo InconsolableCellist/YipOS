@@ -62,6 +62,15 @@ void PDADisplay::MoveCursor(int col, float row) {
 }
 
 void PDADisplay::SendWrite(int col, float row, int char_idx, int bank, bool sleep) {
+    int buf_row = static_cast<int>(std::round(row));
+    // Skip the OSC round-trip if this cell already holds the requested glyph
+    // (and we wouldn't be flipping the bank). This is what makes
+    // re-renders cheap — RenderRow on cursor move ends up paying only for
+    // the cells that actually flip inverted, not the whole row.
+    if (bank == current_bank_ &&
+        screen_.Get(col, buf_row) == char_idx) {
+        return;
+    }
     // Switch ROM bank if needed
     if (bank != current_bank_) {
         SendParam("WT_Bank", bank > 0);
@@ -76,8 +85,7 @@ void PDADisplay::SendWrite(int col, float row, int char_idx, int bank, bool slee
     if (sleep) {
         SleepMs(write_delay_);
     }
-    char ch = (char_idx >= 32 && char_idx <= 126) ? static_cast<char>(char_idx) : ' ';
-    screen_.Put(col, static_cast<int>(std::round(row)), ch);
+    screen_.Put(col, buf_row, char_idx);
 }
 
 void PDADisplay::WriteChar(int col, float row, int char_idx, int bank) {
@@ -95,18 +103,11 @@ void PDADisplay::WriteChar(int col, float row, int char_idx, int bank) {
 }
 
 void PDADisplay::WriteText(int col, float row, const std::string& text, bool inverted) {
-    int buf_row = static_cast<int>(std::round(row));
+    // No need to short-circuit per-char here — SendWrite already skips writes
+    // whose target cell already holds the requested glyph. Just translate
+    // each char to its glyph index.
     for (int i = 0; i < static_cast<int>(text.size()); i++) {
         char ch = text[i];
-        if (ch == ' ' && !inverted) {
-            if (col + i >= 0 && col + i < COLS && buf_row >= 0 && buf_row < ROWS) {
-                if (screen_.Get(col + i, buf_row) == ' ') {
-                    continue;
-                }
-            }
-            WriteChar(col + i, row, 32);
-            continue;
-        }
         int char_idx = (ch >= 32 && ch <= 126) ? static_cast<int>(ch) : 32;
         if (inverted) char_idx += INVERT_OFFSET;
         WriteChar(col + i, row, char_idx);
@@ -170,6 +171,12 @@ void PDADisplay::StampMacro(int macro_index) {
     // Invalidate cached cursor so next text write resends both axes.
     hw_cursor_x_ = -1.0f;
     hw_cursor_y_ = -1.0f;
+    // The RT now holds whatever glyphs the macro contains, but we don't track
+    // those per-cell. Clearing the buffer to UNKNOWN forces the next write
+    // to each cell to actually send (otherwise, writes that happen to
+    // match the buffer's stale state — e.g. ' ' over a macro border — would
+    // be incorrectly skipped).
+    screen_.Invalidate();
 }
 
 void PDADisplay::ClearScreen() {

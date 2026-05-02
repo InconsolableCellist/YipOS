@@ -36,8 +36,8 @@ public:
     FuralityClient();
     ~FuralityClient();
 
-    // Hits both /v2/event and /v2/streamteam/schedule. Returns true on
-    // partial or full success (events_ non-empty afterwards).
+    // Fetches /v2/event (the full event list). Returns true if any events
+    // were parsed.
     bool FetchAll();
 
     const FurEventInfo& GetEventInfo() const { return info_; }
@@ -59,7 +59,6 @@ public:
     bool HasData() const { return !events_.empty(); }
 
 private:
-    bool ParseEventInfo(const std::string& json);
     bool ParseSchedule(const std::string& json);
     bool HttpGet(const std::string& url, std::string& out_body);
     void RecomputeDayIndices();
