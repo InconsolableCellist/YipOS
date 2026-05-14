@@ -35,7 +35,10 @@ UIManager::~UIManager() {
 
 bool UIManager::Initialize(const std::string& title) {
     if (!glfwInit()) {
-        Logger::Error("Failed to initialize GLFW");
+        const char* desc = nullptr;
+        int code = glfwGetError(&desc);
+        Logger::Error("Failed to initialize GLFW (code=" + std::to_string(code) +
+                      ", " + (desc ? desc : "no description") + ")");
         return false;
     }
 
@@ -48,9 +51,25 @@ bool UIManager::Initialize(const std::string& title) {
 
     window_ = glfwCreateWindow(initial_width_, initial_height_, title.c_str(), nullptr, nullptr);
     if (!window_) {
-        Logger::Error("Failed to create GLFW window");
-        glfwTerminate();
-        return false;
+        const char* desc = nullptr;
+        int code = glfwGetError(&desc);
+        Logger::Error("Failed to create GLFW window (code=" + std::to_string(code) +
+                      ", " + (desc ? desc : "no description") + ")");
+
+        // Retry with the OpenGL compatibility profile in case the driver
+        // refused the 3.3 core context (RDP / older drivers / virtualized GPU).
+        glfwDefaultWindowHints();
+        Logger::Info("Retrying window creation with default GL hints");
+        window_ = glfwCreateWindow(initial_width_, initial_height_, title.c_str(), nullptr, nullptr);
+        if (!window_) {
+            const char* desc2 = nullptr;
+            int code2 = glfwGetError(&desc2);
+            Logger::Error("Retry also failed (code=" + std::to_string(code2) +
+                          ", " + (desc2 ? desc2 : "no description") + ")");
+            glfwTerminate();
+            return false;
+        }
+        Logger::Info("Window created with default GL hints");
     }
 
     glfwMakeContextCurrent(window_);
@@ -118,6 +137,8 @@ void UIManager::SaveWindowSize(Config& config) {
     if (!window_) return;
     int w, h;
     glfwGetWindowSize(window_, &w, &h);
+    // Skip while minimized — GLFW reports 0x0 and we'd brick the next launch.
+    if (w < 320 || h < 240) return;
     config.SetState("ui.width", std::to_string(w));
     config.SetState("ui.height", std::to_string(h));
 }
