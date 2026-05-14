@@ -13,11 +13,11 @@
 ;   /DCUDA_FULL      — CUDA CT2, cuBLAS bundled          ~700 MB
 Name "YipOS"
 !ifdef CUDA_FULL
-    OutFile "..\YipOS v1.1.4 Setup (CUDA).exe"
+    OutFile "..\YipOS v1.2.0 Setup (CUDA).exe"
 !else ifdef CUDA_LITE
-    OutFile "..\YipOS v1.1.4 Setup (CUDA Lite).exe"
+    OutFile "..\YipOS v1.2.0 Setup (CUDA Lite).exe"
 !else
-    OutFile "..\YipOS v1.1.4 Setup.exe"
+    OutFile "..\YipOS v1.2.0 Setup.exe"
 !endif
 
 ; Default installation directory
@@ -147,6 +147,10 @@ Section "Install"
     File /nonfatal "..\build_win\libmecab.dll"
     File /nonfatal "..\build_win\mecabrc"
 
+    ; OpenVR thin-client DLL (optional — for SteamVR controller haptics).
+    ; SteamVR ships its own copy but it's not on PATH, so we bundle ours.
+    File /nonfatal "..\build_win\openvr_api.dll"
+
     ; MeCab ipadic dictionary (~12 MB — required for Japanese kanji→hiragana)
     SetOutPath "$INSTDIR\mecab-dic\ipadic"
     File /nonfatal "..\build_win\mecab-dic\ipadic\*.*"
@@ -185,7 +189,7 @@ Section "Install"
     WriteRegStr HKLM "${UNINSTKEY}" "InstallLocation" "$INSTDIR"
     WriteRegStr HKLM "${UNINSTKEY}" "DisplayIcon" "$INSTDIR\yip_os.exe,0"
     WriteRegStr HKLM "${UNINSTKEY}" "Publisher" "Foxipso"
-    WriteRegStr HKLM "${UNINSTKEY}" "DisplayVersion" "1.1.4"
+    WriteRegStr HKLM "${UNINSTKEY}" "DisplayVersion" "1.2.0"
     WriteRegStr HKLM "${UNINSTKEY}" "URLInfoAbout" "https://foxipso.com"
 
     ; Get size of installation directory
@@ -207,6 +211,7 @@ Section "Uninstall"
     Delete "$INSTDIR\cudart64_12.dll"
     Delete "$INSTDIR\libmecab.dll"
     Delete "$INSTDIR\mecabrc"
+    Delete "$INSTDIR\openvr_api.dll"
     RMDir /r "$INSTDIR\mecab-dic"
     Delete "$INSTDIR\assets\vq_codebook.npy"
     Delete "$INSTDIR\assets\yip_os_logo.png"

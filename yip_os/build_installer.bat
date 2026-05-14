@@ -147,7 +147,7 @@ echo.
 echo ===================================
 echo  All installers built successfully
 echo ===================================
-echo   YipOS v1.1.4 Setup.exe
-echo   YipOS v1.1.4 Setup (CUDA Lite).exe
-echo   YipOS v1.1.4 Setup (CUDA).exe
+echo   YipOS v1.2.0 Setup.exe
+echo   YipOS v1.2.0 Setup (CUDA Lite).exe
+echo   YipOS v1.2.0 Setup (CUDA).exe
 pause

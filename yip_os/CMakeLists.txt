@@ -318,6 +318,9 @@ target_link_libraries(yip_os PRIVATE
 # default build doesn't pull a network dependency or require SteamVR).
 option(YIPOS_HAS_OPENVR "Enable SteamVR controller haptics via OpenVR" OFF)
 if(YIPOS_HAS_OPENVR)
+    # OpenVR v2.5.1 ships with cmake_minimum_required(VERSION 2.8.x), which
+    # CMake 4.x refuses. Force policy compatibility for this dep only.
+    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
     FetchContent_Declare(
         openvr
         GIT_REPOSITORY https://github.com/ValveSoftware/openvr.git
@@ -325,14 +328,25 @@ if(YIPOS_HAS_OPENVR)
         GIT_SHALLOW TRUE
     )
     FetchContent_MakeAvailable(openvr)
+    unset(CMAKE_POLICY_VERSION_MINIMUM)
     target_compile_definitions(yip_os PRIVATE YIPOS_HAS_OPENVR)
     target_include_directories(yip_os PRIVATE ${openvr_SOURCE_DIR}/headers)
     if(WIN32)
         target_link_libraries(yip_os PRIVATE
             ${openvr_SOURCE_DIR}/lib/win64/openvr_api.lib)
+        # Ship openvr_api.dll next to yip_os.exe. SteamVR has its own copy
+        # but it's not on PATH, so end users need this bundled.
+        add_custom_command(TARGET yip_os POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${openvr_SOURCE_DIR}/bin/win64/openvr_api.dll
+                $<TARGET_FILE_DIR:yip_os>/openvr_api.dll)
     else()
         target_link_libraries(yip_os PRIVATE
             ${openvr_SOURCE_DIR}/lib/linux64/libopenvr_api.so)
+        add_custom_command(TARGET yip_os POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${openvr_SOURCE_DIR}/lib/linux64/libopenvr_api.so
+                $<TARGET_FILE_DIR:yip_os>/libopenvr_api.so)
     endif()
     message(STATUS "OpenVR enabled — SteamVR controller haptics available")
 else()

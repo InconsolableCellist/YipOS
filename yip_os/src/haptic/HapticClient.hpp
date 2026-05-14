@@ -17,7 +17,8 @@ class Config;
 
 enum class HapticPattern {
     Notification,  // 1 short buzz (~200 ms)
-    Alert,         // 2 buzzes (~150 ms each, 100 ms gap)
+    Alert,         // 3 buzzes (~150 ms each, ~120 ms gaps)
+    Urgent,        // 5 buzzes (~150 ms each, ~100 ms gaps)
     Tap,           // 1 very short buzz (~50 ms)
 };
 

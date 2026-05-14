@@ -57,6 +57,12 @@ void HomeScreen::RenderDynamic() {
         } else {
             display_.WriteChar(38, ZONE_ROWS[0], static_cast<int>(' '));
         }
+        // FUR tile (1,0): show "*" indicator when a marked event is in window
+        if (pda_.HasFurEventWindow()) {
+            display_.WriteChar(6, ZONE_ROWS[1], static_cast<int>('*') + INVERT_OFFSET);
+        } else {
+            display_.WriteChar(6, ZONE_ROWS[1], static_cast<int>(' '));
+        }
     }
 
     RenderPageIndicators();

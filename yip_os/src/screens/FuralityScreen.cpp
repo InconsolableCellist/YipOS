@@ -16,7 +16,7 @@ namespace YipOS {
 using namespace Glyphs;
 
 FuralityScreen::FuralityScreen(PDAController& pda) : ListScreen(pda) {
-    name = "FUR";
+    name = "ULTRA";
     macro_index = 51;
     refresh_interval = -1;  // static layout, no auto-refresh
     update_interval = 30.0f; // poll the "next event" countdown every 30s

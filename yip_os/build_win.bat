@@ -77,8 +77,18 @@ if defined MECAB_PREFIX_FOUND (
 set "PREFIX_CMAKE="
 if defined PREFIX_PATH set "PREFIX_CMAKE=-DCMAKE_PREFIX_PATH=%PREFIX_PATH%"
 
-cmake -B build_win -G "Ninja" -DCMAKE_BUILD_TYPE=Release %VCPKG_CMAKE% %PREFIX_CMAKE%
+cmake -B build_win -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DYIPOS_HAS_OPENVR=ON %VCPKG_CMAKE% %PREFIX_CMAKE%
+if errorlevel 1 (
+    echo.
+    echo *** CMake configure FAILED — aborting before build. ***
+    exit /b 1
+)
 cmake --build build_win
+if errorlevel 1 (
+    echo.
+    echo *** Build FAILED. ***
+    exit /b 1
+)
 
 REM --- Copy CT2 runtime DLLs to build output ---
 if not defined CT2_PREFIX_FOUND goto :skip_ct2_copy
