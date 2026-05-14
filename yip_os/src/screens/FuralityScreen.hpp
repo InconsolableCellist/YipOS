@@ -14,6 +14,7 @@ public:
     static constexpr int kFurDayAll    = -1;
     static constexpr int kFurDayMarked = -2;
     static constexpr int kFurDayNext   = -3;
+    static constexpr int kFurDayTest   = -4;
 
     FuralityScreen(PDAController& pda);
 

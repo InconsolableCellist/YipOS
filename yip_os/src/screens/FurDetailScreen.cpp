@@ -133,18 +133,7 @@ void FurDetailScreen::RenderHeader() {
         return;
     }
 
-    // On page 0 we keep title/time/host visible. Subsequent pages dedicate
-    // every body row to description, so blank these rows then.
-    if (page_ != 0) {
-        for (int r = 1; r <= 3; r++) {
-            for (int c = 1; c < COLS - 1; c++) d.WriteChar(c, r, ' ');
-        }
-        // SEL/back arrows reside on row 1; re-stamp them after the row clear
-        // (SendWrite skips the no-op when content already matches).
-        d.WriteGlyph(0, 1, G_LEFT_A);
-        d.WriteGlyph(COLS - 1, 1, G_RIGHT_A);
-        return;
-    }
+    if (page_ != 0) return;
 
     std::string title = ev_->title.empty() ? std::string("(untitled)") : ev_->title;
     // Leave 1 col on the right for the SEL arrow at (COLS-1, 1).
@@ -184,8 +173,6 @@ void FurDetailScreen::RenderDescription() {
     for (int r = 0; r < row_count; r++) {
         int line_idx = line_offset + r;
         int row_y = first_row + r;
-        // Clear the row first so retreating to a shorter page erases stragglers.
-        for (int c = 1; c < COLS - 1; c++) d.WriteChar(c, row_y, ' ');
         if (line_idx >= total) continue;
         d.WriteText(1, row_y, desc_lines_[line_idx]);
     }
@@ -231,20 +218,12 @@ bool FurDetailScreen::OnInput(const std::string& key) {
 
     if (key == "ML" && page_ > 0) {
         page_--;
-        display_.BeginBuffered();
-        RenderHeader();
-        RenderDescription();
-        RenderMarkIndicator();
-        RenderPageIndicator();
+        pda_.StartRender(this);
         return true;
     }
     if (key == "BL" && page_ < PageCount() - 1) {
         page_++;
-        display_.BeginBuffered();
-        RenderHeader();
-        RenderDescription();
-        RenderMarkIndicator();
-        RenderPageIndicator();
+        pda_.StartRender(this);
         return true;
     }
     return false;

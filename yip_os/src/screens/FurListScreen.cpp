@@ -130,15 +130,16 @@ void FurListScreen::RenderRow(int i, bool selected) {
         body[(title_col - kBodyStart) + static_cast<int>(c)] = ch;
     }
 
+    // Only write non-space cells (screen is already cleared). SEL_WIDTH
+    // cells always write for the inverted overlay when selected.
     auto& d = display_;
     for (int c = 0; c < kBodyWidth; c++) {
         unsigned char ch = static_cast<unsigned char>(body[c]);
-        // Selection-mark cells get inverted overlay
         if (selected && c < SEL_WIDTH) {
             int idx = static_cast<int>(ch);
             if (idx < INVERT_OFFSET) idx += INVERT_OFFSET;
             d.WriteChar(kBodyStart + c, row_y, idx);
-        } else {
+        } else if (ch != ' ') {
             d.WriteChar(kBodyStart + c, row_y, ch);
         }
     }

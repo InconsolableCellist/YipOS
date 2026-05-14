@@ -54,6 +54,7 @@ public:
     void LoadMarked(const Config& cfg);
     bool LoadCache(const std::string& path);
     bool SaveCache(const std::string& path) const;
+    bool LoadScheduleFile(const std::string& path);
 
     int64_t LastFetch() const { return last_fetch_; }
     bool HasData() const { return !events_.empty(); }

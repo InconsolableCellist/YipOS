@@ -106,7 +106,7 @@ int FuralityScreen::ItemCount() const {
     if (!fc || !fc->HasData()) return 0;
     int days = fc->GetEventInfo().day_count;
     if (days < 1) days = 1;
-    int n = 1 + days + 1;  // ALL + days + MARKED
+    int n = 1 + days + 1 + 1;  // MARKED + days + ALL + TEST
     if (HasNextRow()) n += 1;
     return n;
 }
@@ -121,9 +121,10 @@ int FuralityScreen::IndexToFurDay(int row) const {
         if (idx == 0) return kFurDayNext;
         idx -= 1;
     }
-    if (idx == 0) return kFurDayAll;
-    if (idx == 1 + days) return kFurDayMarked;
-    return idx - 1;
+    if (idx == 0) return kFurDayMarked;
+    if (idx <= days) return idx - 1;
+    if (idx == days + 1) return kFurDayAll;
+    return kFurDayTest;
 }
 
 void FuralityScreen::RenderEmpty() {
@@ -168,6 +169,7 @@ void FuralityScreen::RenderRow(int row, bool selected) {
     if (fur_day == kFurDayNext)        std::snprintf(sel_tag, sizeof(sel_tag), "NXT");
     else if (fur_day == kFurDayAll)    std::snprintf(sel_tag, sizeof(sel_tag), "ALL");
     else if (fur_day == kFurDayMarked) std::snprintf(sel_tag, sizeof(sel_tag), "MRK");
+    else if (fur_day == kFurDayTest)   std::snprintf(sel_tag, sizeof(sel_tag), "TST");
     else                                std::snprintf(sel_tag, sizeof(sel_tag), "D%d ", fur_day + 1);
     for (int c = 0; c < SEL_WIDTH; c++) body[c] = sel_tag[c];
     auto place = [&](int col, const std::string& s) {
@@ -200,6 +202,9 @@ void FuralityScreen::RenderRow(int row, bool selected) {
             title = title.substr(0, title_max);
         }
         place(title_col, title);
+    } else if (fur_day == kFurDayTest) {
+        place(kLabelCol, "TEST ALERT");
+        place(22, "sound+haptic");
     } else {
         char label[24] = {0};
         char date[16] = {0};
@@ -236,14 +241,14 @@ void FuralityScreen::RenderRow(int row, bool selected) {
         }
     }
 
-    // Emit the whole row in one pass. SEL_WIDTH cells get the inverted
-    // overlay when selected; WriteChar is used (instead of WriteText) because
-    // the heart slot stores a glyph index outside the printable range.
+    // Only write non-space cells (screen is already cleared). SEL_WIDTH
+    // cells always write because they carry the inverted overlay when selected.
     auto& d = display_;
     for (int i = 0; i < kBodyWidth; i++) {
         int idx = static_cast<unsigned char>(body[i]);
         if (selected && i < SEL_WIDTH && idx < INVERT_OFFSET) idx += INVERT_OFFSET;
-        d.WriteChar(kBodyStart + i, row_y, idx);
+        if (idx != ' ' || (selected && i < SEL_WIDTH))
+            d.WriteChar(kBodyStart + i, row_y, idx);
     }
 }
 
@@ -258,6 +263,7 @@ void FuralityScreen::WriteSelectionMark(int i, bool selected) {
     if (fur_day == kFurDayNext)        std::snprintf(tag, sizeof(tag), "NXT");
     else if (fur_day == kFurDayAll)    std::snprintf(tag, sizeof(tag), "ALL");
     else if (fur_day == kFurDayMarked) std::snprintf(tag, sizeof(tag), "MRK");
+    else if (fur_day == kFurDayTest)   std::snprintf(tag, sizeof(tag), "TST");
     else                                std::snprintf(tag, sizeof(tag), "D%d ", fur_day + 1);
 
     for (int c = 0; c < SEL_WIDTH; c++) {
@@ -273,6 +279,10 @@ bool FuralityScreen::OnSelect(int index) {
         if (!next_event_) return false;
         pda_.SetSelectedFurEvent(next_event_);
         pda_.SetPendingNavigate("FUR_DTL");
+        return true;
+    }
+    if (fur_day == kFurDayTest) {
+        pda_.TestFurNotification();
         return true;
     }
     pda_.SetPendingFurDay(fur_day);
