@@ -193,7 +193,7 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"DM_PAIR",            [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMPairScreen>(p); }},
         {"DM_COMPOSE",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMComposeScreen>(p); }},
         {"DM_MSG",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMMessageScreen>(p); }},
-        {"YC",                 [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<YCScreen>(p); }},
+        {"YIPAI",              [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<YCScreen>(p); }},
         {"ULTRA",              [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FuralityScreen>(p); }},
         {"FUR_LIST",           [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FurListScreen>(p); }},
         {"FUR_DTL",            [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FurDetailScreen>(p); }},

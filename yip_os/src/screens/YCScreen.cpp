@@ -10,7 +10,7 @@ namespace YipOS {
 using namespace Glyphs;
 
 YCScreen::YCScreen(PDAController& pda) : Screen(pda) {
-    name = "YC";
+    name = "YIPAI";
     macro_index = 48;
     update_interval = 0.5f;
 
