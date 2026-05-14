@@ -392,6 +392,25 @@ void FuralityClient::LoadMarked(const Config& cfg) {
     }
 }
 
+bool FuralityClient::LoadScheduleFile(const std::string& path) {
+    std::ifstream f(path);
+    if (!f.is_open()) return false;
+    std::stringstream ss;
+    ss << f.rdbuf();
+    std::string body = ss.str();
+    if (body.empty()) return false;
+
+    if (!ParseSchedule(body)) {
+        Logger::Warning("FuralityClient: could not parse schedule file " + path);
+        return false;
+    }
+    if (info_.name.empty()) info_.name = "Furality";
+    RecomputeDayIndices();
+    Logger::Info("FuralityClient: loaded " + std::to_string(events_.size()) +
+                 " event(s) from schedule file " + path);
+    return !events_.empty();
+}
+
 bool FuralityClient::LoadCache(const std::string& path) {
     std::ifstream f(path);
     if (!f.is_open()) return false;

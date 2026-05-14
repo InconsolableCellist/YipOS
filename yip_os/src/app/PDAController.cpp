@@ -136,9 +136,13 @@ void PDAController::SetAssetsPath(const std::string& p) {
             fur_notify_sound_->LoadOGG(assets_path_ + "/sounds/msgrcv.ogg");
         }
     }
-    // Load FUR cache from disk if present
+    // Load FUR cache from disk if present; fall back to a user-provided
+    // schedule file so the program works even if the API is unreachable.
     if (furality_client_) {
         furality_client_->LoadCache(assets_path_ + "/cache/furality.json");
+        if (!furality_client_->HasData()) {
+            furality_client_->LoadScheduleFile(assets_path_ + "/furality_schedule.json");
+        }
     }
 }
 
@@ -886,6 +890,8 @@ void PDAController::RefreshFuralityCache() {
     if (need_fetch) {
         if (furality_client_->FetchAll() && !assets_path_.empty()) {
             furality_client_->SaveCache(assets_path_ + "/cache/furality.json");
+        } else if (!furality_client_->HasData() && !assets_path_.empty()) {
+            furality_client_->LoadScheduleFile(assets_path_ + "/furality_schedule.json");
         }
     }
 
@@ -910,6 +916,15 @@ void PDAController::RefreshFuralityCache() {
         }
         NotifyHaptic("fur", HapticPattern::Alert);
     }
+}
+
+void PDAController::TestFurNotification() {
+    Logger::Info("FUR: test notification fired");
+    if (fur_notify_sound_ && fur_notify_sound_->IsLoaded() &&
+        !fur_notify_sound_->IsPlaying()) {
+        fur_notify_sound_->Play();
+    }
+    NotifyHaptic("fur", HapticPattern::Alert);
 }
 
 } // namespace YipOS

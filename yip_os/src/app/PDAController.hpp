@@ -151,6 +151,7 @@ public:
     void MarkFurSeen() { has_pending_fur_notif_ = false; }
     void ClearFurNotifiedFor(const std::string& event_id);
     void RefreshFuralityCache();
+    void TestFurNotification();
 
     // Generic haptics (SteamVR controller vibration)
     HapticClient* GetHapticClient() { return haptic_client_.get(); }
