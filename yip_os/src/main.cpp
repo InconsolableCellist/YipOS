@@ -290,12 +290,24 @@ int main(int argc, char* argv[]) {
 
         // UI
         YipOS::UIManager ui;
-        // Restore saved window size
+        // Restore saved window size (guard against bogus 0x0 from minimized save)
         {
             std::string sw = config.GetState("ui.width");
             std::string sh = config.GetState("ui.height");
             if (!sw.empty() && !sh.empty()) {
-                ui.SetInitialSize(std::stoi(sw), std::stoi(sh));
+                try {
+                    int w = std::stoi(sw);
+                    int h = std::stoi(sh);
+                    if (w >= 320 && h >= 240) {
+                        ui.SetInitialSize(w, h);
+                    } else {
+                        YipOS::Logger::Warning("Ignoring saved window size " +
+                            std::to_string(w) + "x" + std::to_string(h) +
+                            " — using default");
+                    }
+                } catch (const std::exception& e) {
+                    YipOS::Logger::Warning(std::string("Bad saved window size: ") + e.what());
+                }
             }
         }
         // Resolve assets path relative to executable
