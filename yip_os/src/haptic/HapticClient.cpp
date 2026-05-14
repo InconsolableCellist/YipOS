@@ -57,7 +57,7 @@ void HapticClient::Shutdown() {
 }
 
 void HapticClient::ReloadConfig(const Config& cfg) {
-    bool g = (cfg.GetState("haptics.enabled", "0") == "1");
+    bool g = (cfg.GetState("haptics.enabled", "1") == "1");
     global_enabled_.store(g);
 
     float intensity = 1.0f;
@@ -178,9 +178,18 @@ void HapticClient::RunPattern(HapticPattern pattern) {
             EmitPulse(200'000, amp);
             break;
         case HapticPattern::Alert:
-            EmitPulse(150'000, amp);
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            if (!stop_.load()) EmitPulse(150'000, amp);
+            for (int i = 0; i < 3; i++) {
+                if (stop_.load()) break;
+                EmitPulse(150'000, amp);
+                if (i < 2) std::this_thread::sleep_for(std::chrono::milliseconds(120));
+            }
+            break;
+        case HapticPattern::Urgent:
+            for (int i = 0; i < 5; i++) {
+                if (stop_.load()) break;
+                EmitPulse(150'000, amp);
+                if (i < 4) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
             break;
     }
 }

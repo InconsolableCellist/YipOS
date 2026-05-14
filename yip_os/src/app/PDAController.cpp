@@ -522,6 +522,12 @@ void PDAController::UpdateClock() {
                 } else {
                     display_.WriteChar(38, ZONE_ROWS[0], static_cast<int>(' '));
                 }
+                // FUR tile [1][0] — "*" at col 6, row 4 while event is in window
+                if (has_fur_event_window_) {
+                    display_.WriteChar(6, ZONE_ROWS[1], static_cast<int>('*') + INVERT_OFFSET);
+                } else {
+                    display_.WriteChar(6, ZONE_ROWS[1], static_cast<int>(' '));
+                }
             }
         }
         else if (s->name == "CHAT" && has_unseen_chat_) {
@@ -861,7 +867,8 @@ void PDAController::NotifyHaptic(const std::string& source, HapticPattern patter
 }
 
 void PDAController::ClearFurNotifiedFor(const std::string& event_id) {
-    fur_notified_ids_.erase(event_id);
+    fur_pre_notified_ids_.erase(event_id);
+    fur_imminent_notified_ids_.erase(event_id);
 }
 
 void PDAController::RefreshFuralityCache() {
@@ -895,31 +902,58 @@ void PDAController::RefreshFuralityCache() {
         }
     }
 
-    // Marked-event scan: fire one notification per imminent event.
+    // Marked-event scan: two-stage notifications per event.
+    //   Stage 1 (pre):      lead in (IMMINENT, LEAD]  → Alert  (3 buzz)
+    //   Stage 2 (imminent): lead in (0, IMMINENT]     → Urgent (5 buzz)
+    // Each stage fires at most once per event; ClearFurNotifiedFor resets both
+    // when the user unmarks an event.
     auto marked = furality_client_->MarkedEvents();
+    bool any_event_in_window = false;
     for (const FurEvent* ev : marked) {
         if (!ev || ev->start_unix <= 0) continue;
         int64_t lead = ev->start_unix - now_unix;
-        if (lead <= 0 || lead > FUR_NOTIFY_LEAD_SECONDS) continue;
-        if (fur_notified_ids_.count(ev->id)) continue;
+        // "*" indicator: visible from 15 min before start to 15 min after.
+        if (lead <= FUR_NOTIFY_LEAD_SECONDS && lead >= -FUR_INDICATOR_PAST_SECONDS) {
+            any_event_in_window = true;
+        }
+    }
+    has_fur_event_window_ = any_event_in_window;
 
-        fur_notified_ids_.insert(ev->id);
+    for (const FurEvent* ev : marked) {
+        if (!ev || ev->start_unix <= 0) continue;
+        int64_t lead = ev->start_unix - now_unix;
+        if (lead <= 0) continue;
+
+        bool fire_imminent = (lead <= FUR_NOTIFY_IMMINENT_SECONDS &&
+                              !fur_imminent_notified_ids_.count(ev->id));
+        bool fire_pre = (!fire_imminent &&
+                         lead <= FUR_NOTIFY_LEAD_SECONDS &&
+                         lead > FUR_NOTIFY_IMMINENT_SECONDS &&
+                         !fur_pre_notified_ids_.count(ev->id));
+        if (!fire_imminent && !fire_pre) continue;
+
+        const char* stage = fire_imminent ? "IMMINENT" : "pre";
+        HapticPattern pattern = fire_imminent ? HapticPattern::Urgent
+                                              : HapticPattern::Alert;
+        if (fire_imminent) fur_imminent_notified_ids_.insert(ev->id);
+        else               fur_pre_notified_ids_.insert(ev->id);
         has_pending_fur_notif_ = true;
 
-        Logger::Info("FUR: notifying for '" + ev->title +
-                     "' starting in " + std::to_string(lead / 60) + " min");
+        Logger::Info(std::string("ULTRA: ") + stage + " notification for '" +
+                     ev->title + "' starting in " +
+                     std::to_string(lead) + " s");
 
         if (config_.GetState("fur.notify_sound", "1") == "1" &&
             fur_notify_sound_ && fur_notify_sound_->IsLoaded() &&
             !fur_notify_sound_->IsPlaying()) {
             fur_notify_sound_->Play();
         }
-        NotifyHaptic("fur", HapticPattern::Alert);
+        NotifyHaptic("fur", pattern);
     }
 }
 
 void PDAController::TestFurNotification() {
-    Logger::Info("FUR: test notification fired");
+    Logger::Info("ULTRA: test notification fired");
     if (fur_notify_sound_ && fur_notify_sound_->IsLoaded() &&
         !fur_notify_sound_->IsPlaying()) {
         fur_notify_sound_->Play();

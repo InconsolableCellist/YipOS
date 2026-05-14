@@ -125,9 +125,9 @@ void Screen::RenderStatusIcons() {
     } else {
         display_.WriteGlyph(2, 7, G_HLINE);
     }
-    // Col 3: notification indicator (VRCX notifs, chat unseen, or imminent FUR event)
+    // Col 3: notification indicator (VRCX notifs, chat unseen, or FUR event window)
     if (pda_.HasUnseenNotifsCached() || pda_.HasUnseenChatCached() ||
-        pda_.HasPendingFurNotif()) {
+        pda_.HasPendingFurNotif() || pda_.HasFurEventWindow()) {
         display_.WriteGlyph(3, 7, G_BULLET);
     } else {
         display_.WriteGlyph(3, 7, G_HLINE);
@@ -194,7 +194,7 @@ std::unique_ptr<Screen> CreateScreen(const std::string& name, PDAController& pda
         {"DM_COMPOSE",         [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMComposeScreen>(p); }},
         {"DM_MSG",             [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<DMMessageScreen>(p); }},
         {"YC",                 [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<YCScreen>(p); }},
-        {"FUR",                [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FuralityScreen>(p); }},
+        {"ULTRA",              [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FuralityScreen>(p); }},
         {"FUR_LIST",           [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FurListScreen>(p); }},
         {"FUR_DTL",            [](PDAController& p) -> std::unique_ptr<Screen> { return std::make_unique<FurDetailScreen>(p); }},
     };

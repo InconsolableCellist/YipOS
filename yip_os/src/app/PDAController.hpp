@@ -149,6 +149,9 @@ public:
     const FurEvent* GetSelectedFurEvent() const { return selected_fur_event_; }
     bool HasPendingFurNotif() const { return has_pending_fur_notif_; }
     void MarkFurSeen() { has_pending_fur_notif_ = false; }
+    // True while any marked event is within ±15 min of its start time.
+    // Persistent across MarkFurSeen — driven purely by the schedule clock.
+    bool HasFurEventWindow() const { return has_fur_event_window_; }
     void ClearFurNotifiedFor(const std::string& event_id);
     void RefreshFuralityCache();
     void TestFurNotification();
@@ -267,10 +270,15 @@ private:
     int pending_fur_day_ = -1;
     const FurEvent* selected_fur_event_ = nullptr;
     bool has_pending_fur_notif_ = false;
-    std::unordered_set<std::string> fur_notified_ids_;
+    bool has_fur_event_window_ = false;  // any marked event in ±15 min window
+    std::unordered_set<std::string> fur_pre_notified_ids_;       // 15-min pre-warn
+    std::unordered_set<std::string> fur_imminent_notified_ids_;  // ~1-min urgent
     double last_fur_check_ = 0;
-    static constexpr double FUR_CHECK_INTERVAL = 60.0;          // poll every 60 s
-    static constexpr int64_t FUR_NOTIFY_LEAD_SECONDS = 15 * 60; // 15-minute pre-warn
+    static constexpr double FUR_CHECK_INTERVAL = 60.0;               // poll every 60 s
+    static constexpr int64_t FUR_NOTIFY_LEAD_SECONDS = 15 * 60;      // 15-minute pre-warn
+    static constexpr int64_t FUR_NOTIFY_IMMINENT_SECONDS = 90;       // ~1-min urgent (90 s window
+                                                                     // tolerates the 60 s poll)
+    static constexpr int64_t FUR_INDICATOR_PAST_SECONDS = 15 * 60;   // hide "*" 15 min after start
 
     // Generic haptics
     std::unique_ptr<HapticClient> haptic_client_;
