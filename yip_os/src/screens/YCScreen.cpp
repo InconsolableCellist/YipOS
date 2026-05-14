@@ -68,7 +68,7 @@ void YCScreen::ComputeCells() {
     auto* bridge = pda_.GetBridgeClient();
     if (!bridge || !bridge->IsConnected()) {
         const char* line1 = "Not connected";
-        const char* line2 = "Waiting for Yip Companion...";
+        const char* line2 = "Waiting for YipAI...";
         int r1 = 2 * TEXT_COLS;
         int r2 = 3 * TEXT_COLS;
         for (int i = 0; line1[i]; i++) desired_[r1 + i + 1] = line1[i];
@@ -160,11 +160,11 @@ void YCScreen::FlushRefresh() {
 
 void YCScreen::Render() {
     auto* bridge = pda_.GetBridgeClient();
-    std::string title = "YC";
+    std::string title = "YipAI";
     if (bridge && bridge->IsConnected()) {
         auto data = bridge->GetData();
         if (!data.companion_name.empty())
-            title = "YC: " + data.companion_name;
+            title = "YipAI: " + data.companion_name;
     }
     RenderFrame(title);
 

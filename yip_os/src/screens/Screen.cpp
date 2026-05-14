@@ -138,7 +138,7 @@ void Screen::RenderStatusIcons() {
     } else {
         display_.WriteGlyph(4, 7, G_HLINE);
     }
-    // Col 5: YC bridge connection indicator
+    // Col 5: YipAI bridge connection indicator
     if (auto* bc = pda_.GetBridgeClient(); bc && bc->IsConnected()) {
         display_.WriteGlyph(5, 7, G_SIGNAL);
     } else {

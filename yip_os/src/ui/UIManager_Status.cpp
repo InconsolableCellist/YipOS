@@ -155,11 +155,11 @@ void UIManager::RenderStatusTab(PDAController& pda, OSCManager& osc) {
         }
     }
 
-    // --- YC Bridge ---
+    // --- YipAI Bridge ---
     {
         auto& config = pda.GetConfig();
         ImGui::Separator();
-        ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "Yip Companion Bridge");
+        ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f), "YipAI Bridge");
 
         bool bridge_enabled = config.GetState("bridge.enabled") == "1";
         if (ImGui::Checkbox("Enable##bridge", &bridge_enabled)) {

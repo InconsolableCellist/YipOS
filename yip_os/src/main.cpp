@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
         pda.SetTranslationWorker(&translation_worker);
 #endif
 
-        // YC Bridge (optional TCP connection to Yip Companion)
+        // YipAI Bridge (optional TCP connection to YipAI)
         YipOS::BridgeClient bridge_client;
         pda.SetBridgeClient(&bridge_client);
         if (config.GetState("bridge.enabled") == "1") {

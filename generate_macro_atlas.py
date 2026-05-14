@@ -107,7 +107,7 @@ TILE_LABELS = [
 ]
 
 TILE_LABELS_P2 = [
-    ["DBG", "TWTCH", "INTRP", "YC", "DM"],
+    ["DBG", "TWTCH", "INTRP", "YIPAI", "DM"],
     ["ULTRA", "-----", "-----", "-----", "-----"],
     ["-----", "-----", "-----", "-----", "-----"],
 ]
@@ -861,8 +861,8 @@ def layout_dm_pair_joined(buf):
 
 
 def layout_yc(buf):
-    """YC (Yip Companion) screen: frame + expression row + text area + thought area."""
-    buf.put_frame("YC")
+    """YipAI screen: frame + expression row + text area + thought area."""
+    buf.put_frame("YipAI")
     buf.put_glyph(0, 1, G_LEFT_A)
     buf.put_status_bar()
 
@@ -989,7 +989,7 @@ SCREEN_LAYOUTS = {
     45: ("PAIR OK", layout_dm_pair_complete),
     46: ("PAIR FAIL", layout_dm_pair_failed),
     47: ("PAIR JOIN", layout_dm_pair_joined),
-    48: ("YC", layout_yc),
+    48: ("YipAI", layout_yc),
     49: ("EXPR 0-7", layout_expr_0),
     50: ("EXPR 8-15", layout_expr_1),
     51: ("FUR", layout_fur),

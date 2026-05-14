@@ -80,7 +80,7 @@ Yip OS comes with a home screen filled with programs that are designed to be use
 | **STONK** | Stock and crypto ticker with configurable watchlist |
 | **INTRP** | Live interpreter -- Whisper transcription (Vulkan or CPU) + CTranslate2/NLLB translation (CUDA 12.x or CPU); uses Bank 1 glyph ROM to render foreign characters on-screen |
 | **DM** | Peer-to-peer direct messages, QR-paired in VRChat via camera capture (see rate limits below) |
-| **YC** | Yip Companion bridge -- live utterances and inner thoughts from a paired AI companion (SEL toggles between speech and thoughts) |
+| **YIPAI** | YipAI bridge -- live utterances and inner thoughts from a paired AI companion (SEL toggles between speech and thoughts) |
 | **ULTRA** | Furality Ultra schedule -- browse events by day, mark favorites, get sound + SteamVR haptic notifications 15 min and ~1 min before each starts |
 | **LOCK** | Screen lock -- tap SEL three times to unlock |
 
@@ -191,7 +191,7 @@ Pairing codes themselves expire **5 minutes** after creation. Session data and m
 
 **1.2.0** (May 14, 2026)
 - **Furality Ultra Program (FUR)** — browse the live event schedule by day, mark favorites, and receive sound + SteamVR controller haptic notifications 15 min before an event and again ~1 min before it starts
-- **Yip Companion Program (YC)** — bridge screen for a paired AI companion: shows the latest utterance by default, SEL toggles to inner thoughts; new utterances trigger an instant full-screen macro flash instead of a slow per-cell redraw
+- **YipAI Program** — bridge screen for a paired AI companion: shows the latest utterance by default, SEL toggles to inner thoughts; new utterances trigger an instant full-screen macro flash instead of a slow per-cell redraw
 - **SteamVR controller haptics** — generic notification source (`fur`/`dm`/`chat`/`vrcx`), enabled by default; soft-fails when SteamVR isn't running
 - **Startup robustness** — guard against bogus 0×0 window size saved while the app was minimized; verbose GLFW init/create-window diagnostics with default-hint retry path
 - Bug fixes (WASAPI format fallback, audio device disappearance, CC Force-CPU escape hatch, Vulkan crash diagnostics, DM compose incremental redraw)
@@ -208,7 +208,7 @@ Pairing codes themselves expire **5 minutes** after creation. Session data and m
 
 <details><summary>Detailed per-release changelog (1.1.0–1.2.0)</summary>
 
-**1.2.0** - Furality Ultra (FUR) program with marked-event notifications + two-stage SteamVR haptics; Yip Companion (YC) bridge screen with SEL utterance/thought toggle and macro-flash redraw; generic HapticClient (OpenVR thin-client, soft-fails without SteamVR, ships openvr_api.dll); window-size 0×0 fix + GLFW diagnostics; WASAPI format fallback; CC Force-CPU toggle; CC + DM crash diagnostics; DM compose incremental redraw; QR scan per-channel grayscale fallback; saved audio-device disappearance fix
+**1.2.0** - Furality Ultra (FUR) program with marked-event notifications + two-stage SteamVR haptics; YipAI bridge screen with SEL utterance/thought toggle and macro-flash redraw; generic HapticClient (OpenVR thin-client, soft-fails without SteamVR, ships openvr_api.dll); window-size 0×0 fix + GLFW diagnostics; WASAPI format fallback; CC Force-CPU toggle; CC + DM crash diagnostics; DM compose incremental redraw; QR scan per-channel grayscale fallback; saved audio-device disappearance fix
 
 **1.1.4** - WASAPI capture crash fix and format fallback path
 
